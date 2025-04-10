@@ -1,0 +1,187 @@
+Created by PLY version 3.9 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    AND
+    SPACE
+
+Grammar
+
+Rule 0     S' -> Query
+Rule 1     Query -> SFW
+Rule 2     SFW -> SELECT SelList FROM FromList WHERE Cond
+Rule 3     SelList -> TCNAME COMMA SelList
+Rule 4     SelList -> TCNAME
+Rule 5     FromList -> TCNAME COMMA FromList
+Rule 6     FromList -> TCNAME
+Rule 7     Cond -> TCNAME EQX CONSTANT
+
+Terminals, with rules where they appear
+
+AND                  : 
+COMMA                : 3 5
+CONSTANT             : 7
+EQX                  : 7
+FROM                 : 2
+SELECT               : 2
+SPACE                : 
+TCNAME               : 3 4 5 6 7
+WHERE                : 2
+error                : 
+
+Nonterminals, with rules where they appear
+
+Cond                 : 2
+FromList             : 2 5
+Query                : 0
+SFW                  : 1
+SelList              : 2 3
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . Query
+    (1) Query -> . SFW
+    (2) SFW -> . SELECT SelList FROM FromList WHERE Cond
+
+    SELECT          shift and go to state 3
+
+    Query                          shift and go to state 2
+    SFW                            shift and go to state 1
+
+state 1
+
+    (1) Query -> SFW .
+
+    $end            reduce using rule 1 (Query -> SFW .)
+
+
+state 2
+
+    (0) S' -> Query .
+
+
+
+state 3
+
+    (2) SFW -> SELECT . SelList FROM FromList WHERE Cond
+    (3) SelList -> . TCNAME COMMA SelList
+    (4) SelList -> . TCNAME
+
+    TCNAME          shift and go to state 5
+
+    SelList                        shift and go to state 4
+
+state 4
+
+    (2) SFW -> SELECT SelList . FROM FromList WHERE Cond
+
+    FROM            shift and go to state 6
+
+
+state 5
+
+    (3) SelList -> TCNAME . COMMA SelList
+    (4) SelList -> TCNAME .
+
+    COMMA           shift and go to state 7
+    FROM            reduce using rule 4 (SelList -> TCNAME .)
+
+
+state 6
+
+    (2) SFW -> SELECT SelList FROM . FromList WHERE Cond
+    (5) FromList -> . TCNAME COMMA FromList
+    (6) FromList -> . TCNAME
+
+    TCNAME          shift and go to state 9
+
+    FromList                       shift and go to state 8
+
+state 7
+
+    (3) SelList -> TCNAME COMMA . SelList
+    (3) SelList -> . TCNAME COMMA SelList
+    (4) SelList -> . TCNAME
+
+    TCNAME          shift and go to state 5
+
+    SelList                        shift and go to state 10
+
+state 8
+
+    (2) SFW -> SELECT SelList FROM FromList . WHERE Cond
+
+    WHERE           shift and go to state 11
+
+
+state 9
+
+    (5) FromList -> TCNAME . COMMA FromList
+    (6) FromList -> TCNAME .
+
+    COMMA           shift and go to state 12
+    WHERE           reduce using rule 6 (FromList -> TCNAME .)
+
+
+state 10
+
+    (3) SelList -> TCNAME COMMA SelList .
+
+    FROM            reduce using rule 3 (SelList -> TCNAME COMMA SelList .)
+
+
+state 11
+
+    (2) SFW -> SELECT SelList FROM FromList WHERE . Cond
+    (7) Cond -> . TCNAME EQX CONSTANT
+
+    TCNAME          shift and go to state 13
+
+    Cond                           shift and go to state 14
+
+state 12
+
+    (5) FromList -> TCNAME COMMA . FromList
+    (5) FromList -> . TCNAME COMMA FromList
+    (6) FromList -> . TCNAME
+
+    TCNAME          shift and go to state 9
+
+    FromList                       shift and go to state 15
+
+state 13
+
+    (7) Cond -> TCNAME . EQX CONSTANT
+
+    EQX             shift and go to state 16
+
+
+state 14
+
+    (2) SFW -> SELECT SelList FROM FromList WHERE Cond .
+
+    $end            reduce using rule 2 (SFW -> SELECT SelList FROM FromList WHERE Cond .)
+
+
+state 15
+
+    (5) FromList -> TCNAME COMMA FromList .
+
+    WHERE           reduce using rule 5 (FromList -> TCNAME COMMA FromList .)
+
+
+state 16
+
+    (7) Cond -> TCNAME EQX . CONSTANT
+
+    CONSTANT        shift and go to state 17
+
+
+state 17
+
+    (7) Cond -> TCNAME EQX CONSTANT .
+
+    $end            reduce using rule 7 (Cond -> TCNAME EQX CONSTANT .)
+
