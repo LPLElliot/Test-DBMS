@@ -7,16 +7,10 @@
 # the output is a syntax tree
 #----------------------------------------------------
 import common_db
-
 # the following two packages need to be installed by yourself
 import ply.yacc as yacc 
 import ply.lex as lex
-
-
-
 from lex_db import tokens
-
-
 
 #---------------------------------
 # Query  : SFW
@@ -29,8 +23,6 @@ from lex_db import tokens
 # Condition: TCNAME EQX CONSTANT
 #---------------------------------
 
-
-
 #------------------------------
 # check the syntax tree
 # input:
@@ -41,8 +33,6 @@ from lex_db import tokens
 def check_syn_tree(syn_tree):
     if syn_tree:
         pass
-
-
 
 #------------------------------
 #(1) construct the node for query expression
@@ -55,12 +45,10 @@ def check_syn_tree(syn_tree):
 #--------------------------------------      
 def p_expr_query(t):
     'Query : SFW'
-    
     t[0]=common_db.Node('Query',[t[1]])
     common_db.global_syn_tree=t[0]
     check_syn_tree(common_db.global_syn_tree)
     common_db.show(common_db.global_syn_tree)
-    
     return t
 
 #------------------------------
@@ -75,10 +63,7 @@ def p_expr_swf(t):
     t[1]=common_db.Node('SELECT',None)
     t[3]=common_db.Node('FROM',None)
     t[5]=common_db.Node('WHERE',None)
-    
     t[0]=common_db.Node('SFW',[t[1],t[2],t[3],t[4],t[5],t[6]])
-    
-    
     return t
 
 #------------------------------
@@ -88,16 +73,11 @@ def p_expr_swf(t):
 # output:
 #       the nodes
 #--------------------------------------   
-
 def p_expr_sellist_first(t):
     'SelList : TCNAME COMMA SelList'
-    
-    
     t[1]=common_db.Node('TCNAME',[t[1]])
-    
     t[2]=common_db.Node(',',None)
     t[0]=common_db.Node('SelList',[t[1],t[2],t[3]])
-    
     return t
 
 #------------------------------
@@ -109,12 +89,9 @@ def p_expr_sellist_first(t):
 #--------------------------------------   
 def p_expr_sellist_second(t):
     'SelList : TCNAME'
-   
     t[1]=common_db.Node('TCNAME',[t[1]])
     t[0]=common_db.Node('SelList',[t[1]])
-    
     return t
-
 
 #---------------------------
 #construct the node for from expression
@@ -128,9 +105,7 @@ def p_expr_fromlist_first(t):
     t[1]=common_db.Node('TCNAME',[t[1]])
     t[2]=common_db.Node(',',None)
     t[0]=common_db.Node('FromList',[t[1],t[2],t[3]])
-    
     return t
-
 
 #------------------------------
 #(1) construct the node for from expression
@@ -157,13 +132,9 @@ def p_expr_condition(t):
     t[1]=common_db.Node('TCNAME',[t[1]])
     t[2]=common_db.Node('=',None)
     t[3]=common_db.Node('CONSTANT',[t[3]])
-    
     t[0]=common_db.Node('Cond',[t[1],t[2],t[3]])
-    
     return t 
 
-
-    
 #------------------------------
 # for error
 # input:
@@ -174,7 +145,6 @@ def p_expr_condition(t):
 def p_error(t):
     print ('wrong at %s'% t.value)
 
-
 #------------------------------------------
 # to set the global_parser handle in common_db.py
 #---------------------------------------------    
@@ -182,9 +152,7 @@ def set_handle():
     common_db.global_parser=yacc.yacc(write_tables=0)
     if common_db.global_parser is None:
         print ('wrong when yacc object is created')
-
         
-    
 # the following is to test
 '''
 # the following is to test
@@ -192,4 +160,3 @@ my_str="select f1,f2 from t1,t2 where f1=9"
 my_parser=yacc.yacc(write_tables=0)# the tabl does not cache
 my_parser.parse(my_str)
 '''
-

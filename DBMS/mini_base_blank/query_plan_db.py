@@ -4,46 +4,34 @@
 # modified by:Shuting Guo shutingnjupt@gmail.com
 #------------------------------------------------
 
-
-
 #----------------------------------------------------------
 # this module can turn a syntax tree into a query plan tree
 #----------------------------------------------------------
-
 import common_db
 import storage_db
-import itertools
-    
+import itertools 
 
 #--------------------------------
 # to import the syntax tree, which is defined in parser_db.py
 #-------------------------------------------
 from common_db import global_syn_tree as syn_tree
-
 class parseNode:
     def __init__(self):
         self.sel_list=[]
         self.from_list=[]
         self.where_list=[]
-
     def get_sel_list(self):
         return self.sel_list
-
     def get_from_list(self):
         return self.from_list
-
     def get_where_list(self):
         return self.where_list
-
     def update_sel_list(self,self_list):
         self.sel_list = self_list
-
     def update_from_list(self, from_list):
         self.from_list = from_list
-
     def update_where_list(self,where_list):
         self.where_list = where_list
-
 
 #--------------------------------
 # Author: Shuting Guo shutingnjupt@gmail.com
@@ -74,7 +62,6 @@ def extract_sfw_data():
 # FromList:TCNAME
 # Condition: TCNAME EQX CONSTANT
 #---------------------------------
-
 def destruct(nodeobj,PN):
     if isinstance(nodeobj, common_db.Node):  # it is a Node object
         if nodeobj.children:
@@ -93,7 +80,6 @@ def destruct(nodeobj,PN):
             else:
                 for i in range(len(nodeobj.children)):
                     destruct(nodeobj.children[i],PN)
-
 def show(nodeobj,tmpList):
     if isinstance(nodeobj,common_db.Node):
         if not nodeobj.children:
@@ -104,14 +90,12 @@ def show(nodeobj,tmpList):
     if isinstance(nodeobj,str):
         tmpList.append(nodeobj)
 
-
 #---------------------------
 #input:
 #       from_list
 #output:
 #       a tree
 #-----------------------------------
-        
 def construct_from_node(from_list):
     if from_list:        
         if len(from_list)==1:
@@ -120,13 +104,9 @@ def construct_from_node(from_list):
         elif len(from_list)==2:
             temp_node_first=common_db.Node(from_list[0],None)
             temp_node_second=common_db.Node(from_list[1],None)
-            
             return common_db.Node('X',[temp_node_first,temp_node_second])       
-            
         elif len(from_list)>2:
-            
             right_node=common_db.Node(from_list[len(from_list)-1],None)
-            
             return common_db.Node('X',[construct_from_node(from_list[0:len(from_list)-1]),right_node])
 
 #---------------------------
@@ -141,7 +121,6 @@ def construct_where_node(from_node,where_list):
        return common_db.Node('Filter',[from_node],where_list)
     elif from_node and len(where_list)==0:# there is no where clause
         return from_node
-
 
 #---------------------------
 #input:
@@ -160,14 +139,11 @@ def construct_select_node(wf_node,sel_list):
 # input
 #       global logical tree
 #---------------------------------------------
-
 def execute_logical_tree():
     if common_db.global_logical_tree:
         def excute_tree():
-
             idx = 0
             dict_ = {}
-
             def show(node_obj, idx, dict_):
                 if isinstance(node_obj, common_db.Node):  # it is a Node object
                     dict_.setdefault(idx, [])
@@ -177,10 +153,8 @@ def execute_logical_tree():
                     if node_obj.children:
                         for i in range(len(node_obj.children)):
                             show(node_obj.children[i], idx + 1, dict_)
-
             show(common_db.global_logical_tree, idx, dict_)
             idx = sorted(dict_.keys(), reverse=True)[0]
-
             def GetFilterParam(tableName_Order, current_field, param):
                 # print tableName_Order,current_field
                 if '.' in param:
@@ -200,7 +174,6 @@ def execute_logical_tree():
                     return TableIndex, FieldIndex, FieldType, True
                 else:
                     return 0, 0, 0, False
-
             current_field = []
             current_list =[]
             #print dict_
@@ -221,7 +194,6 @@ def execute_logical_tree():
                         tableName_Order = [dict_[idx][0]]
                         current_field = [a_1.getfilenamelist()]
                         #print current_list
-
                 elif 'X' in dict_[idx] and len(dict_[idx]) > 1:
                     a_2 = storage_db.Storage(dict_[idx][1])
                     tableName_Order.append(dict_[idx][1])
@@ -230,12 +202,10 @@ def execute_logical_tree():
                     current_list = []
                     for x in itertools.product(tmp_List, a_2.getRecord()):
                         current_list.append(list((x[0][0], x[0][1], x[1])))
-
                 elif 'X' not in dict_[idx]:
                     if 'Filter' in dict_[idx][0]:
                         FilterChoice = dict_[idx][0][1]
-                        TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field,
-                                                                                   FilterChoice[0])
+                        TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field,FilterChoice[0])
                         if not isTrue:
                             return [], [], False
                         else:
@@ -257,12 +227,10 @@ def execute_logical_tree():
                                 ans = ans.strip()
                             if FilterParam == ans:
                                 current_list.append(tmpRecord)
-
                     if 'Proj' in dict_[idx][0]:
                         SelIndexList = []
                         for i in range(len(dict_[idx][0][1])):
-                            TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field,
-                                                                                       dict_[idx][0][1][i])
+                            TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field,dict_[idx][0][1][i])
                             if not isTrue:
                                 return [], [], False
                             SelIndexList.append((TableIndex, FieldIndex))
@@ -287,9 +255,7 @@ def execute_logical_tree():
                                 tableName_Order[xi[0]].strip() + '.' + current_field[xi[0]][xi[1]][0].strip())
                         return outPutField, current_list, True
                 idx -= 1
-
         outPutField, current_list, isRight = excute_tree()
-
         if isRight:
             print (outPutField)
             for record in current_list:
@@ -312,18 +278,13 @@ def construct_logical_tree():
         from_list=[i for i in from_list if i!=',']
         where_list=tuple(where_list)
         #print sel_list,from_list,where_list
-
         from_node = construct_from_node(from_list)
         where_node = construct_where_node(from_node, where_list)
         common_db.global_logical_tree = construct_select_node(where_node, sel_list)
-
         #if common_db.global_logical_tree:
         #    common_db.show(common_db.global_logical_tree)
-
-
     else:
         print ('there is no data in the syntax tree in the construct_logical_tree')
-
 
 '''
 # the following is to test the code
@@ -335,5 +296,3 @@ sel_list1=['f1','f2']
 syn_tree=construct_select_node(tree_where,sel_list1)
 print extract_sfw_data()
 '''
-
-
