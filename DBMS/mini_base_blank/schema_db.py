@@ -1,7 +1,7 @@
 #-----------------------------------------------
 # schema_db.py
 # author: Jingyu Han   hjymail@163.com
-# modified by: Ning wang, Yidan Xu
+# modified by: Xinjian Zhang   278254081@qq.com
 #-----------------------------------------------
 # to process the schema data, which is stored in all.sch
 # all.sch are divied into three parts,namely metaHead, tableNameHead and body

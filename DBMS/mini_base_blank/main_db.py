@@ -1,7 +1,7 @@
 # -----------------------
 # main_db.py
 # author: Jingyu Han   hjymail@163.com
-# modified by: Ning Wang, Yidan Xu
+# modified by: Xinjian Zhang   278254081@qq.com
 # -----------------------------------
 # This is the main loop of the program
 # ---------------------------------------
@@ -33,7 +33,6 @@ def main():
     schemaObj = schema_db.Schema()  # to create a schema object, which contains the schema of all tables
     dataObj = None
     choice = input(PROMPT_STR)
-
     while True:
         if choice == '1':  # add a new table and lines of data
             tableName = input('please enter your new table name:')
