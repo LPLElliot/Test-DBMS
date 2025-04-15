@@ -43,9 +43,7 @@ def main():
             if tableName.strip() not in schemaObj.get_table_name_list():
                 # Create a new table
                 dataObj = storage_db.Storage(tableName)
-
                 insertFieldList = dataObj.getFieldList()
-
                 schemaObj.appendTable(tableName, insertFieldList)  # add the table structure
             else:
                 dataObj = storage_db.Storage(tableName)

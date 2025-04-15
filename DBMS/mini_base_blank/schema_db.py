@@ -194,7 +194,6 @@ class Schema(object):
         if len(tableName) == 0 or len(tableName) > 10 or len(fieldList)==0:
             print ('tablename is invalid or field list is invalid')
         else:
-
             fieldNum = len(fieldList)
             print ("the following is to write the fields to body in all.sch")
             fieldBuff = ctypes.create_string_buffer(MAX_FIELD_LEN * len(fieldList))
