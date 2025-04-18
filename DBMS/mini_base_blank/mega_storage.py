@@ -1,7 +1,7 @@
 #------------------------------------------------
 # mega_stroage.py
 # author: Jingyu Han, hjymail@163.com
-# modified by:Shuting Guo, shutingnjupt@gmail.com
+# modified by: Xinjian Zhang   278254081@qq.com
 #------------------------------------------------
 '''
 mega_storage.py is to store table data in separate files.

@@ -1,4 +1,4 @@
-Created by PLY version 3.9 (http://www.dabeaz.com/ply)
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
 
 Unused terminals:
 
@@ -47,20 +47,20 @@ state 0
 
     SELECT          shift and go to state 3
 
-    Query                          shift and go to state 2
-    SFW                            shift and go to state 1
+    Query                          shift and go to state 1
+    SFW                            shift and go to state 2
 
 state 1
 
-    (1) Query -> SFW .
+    (0) S' -> Query .
 
-    $end            reduce using rule 1 (Query -> SFW .)
 
 
 state 2
 
-    (0) S' -> Query .
+    (1) Query -> SFW .
 
+    $end            reduce using rule 1 (Query -> SFW .)
 
 
 state 3
@@ -137,9 +137,9 @@ state 11
     (2) SFW -> SELECT SelList FROM FromList WHERE . Cond
     (7) Cond -> . TCNAME EQX CONSTANT
 
-    TCNAME          shift and go to state 13
+    TCNAME          shift and go to state 14
 
-    Cond                           shift and go to state 14
+    Cond                           shift and go to state 13
 
 state 12
 
@@ -153,16 +153,16 @@ state 12
 
 state 13
 
-    (7) Cond -> TCNAME . EQX CONSTANT
+    (2) SFW -> SELECT SelList FROM FromList WHERE Cond .
 
-    EQX             shift and go to state 16
+    $end            reduce using rule 2 (SFW -> SELECT SelList FROM FromList WHERE Cond .)
 
 
 state 14
 
-    (2) SFW -> SELECT SelList FROM FromList WHERE Cond .
+    (7) Cond -> TCNAME . EQX CONSTANT
 
-    $end            reduce using rule 2 (SFW -> SELECT SelList FROM FromList WHERE Cond .)
+    EQX             shift and go to state 16
 
 
 state 15

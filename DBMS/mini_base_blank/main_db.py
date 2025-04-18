@@ -19,9 +19,20 @@ import parser_db  # for yacc, where ddata is tored in binary format
 import common_db  # the global variables, functions, constants in the program
 import query_plan_db  # construct the query plan and execute it
 
-PROMPT_STR = 'Input your choice  \n1:add a new table structure and data \n2:delete a table structure and data\
-\n3:view a table structure and data \n4:delete all tables and data \n5:select from where clause\
-\n6:delete a row according to field keyword \n7:update a row according to field keyword \n. to quit):\n'
+PROMPT_STR = '''
++-----------------------------------------+
+|               MENU OPTIONS              |
++-----------------------------------------+
+| 1: Add a new table structure and data   |
+| 2: Delete a table structure and data    |
+| 3: View a table structure and data      |
+| 4: Delete all tables and data           |
+| 5: SELECT FROM WHERE clause             |
+| 6: Delete a row by field keyword        |
+| 7: Update a row by field keyword        |
+| .: Quit                                 |
++-----------------------------------------+
+Input your choice: '''  # the prompt string for user input(to be modified later)
 
 # --------------------------
 # the main loop, which needs further implementation
@@ -95,7 +106,7 @@ def main():
             # to be inserted here -> to delete from data files
             for i in range(len(table_name_list)):
                 table_name = table_name_list[i]
-                table_name.strip()
+                table_name = table_name.strip()
                 if table_name:
                     stObj = storage_db.Storage(table_name)
                     stObj.delete_table_data(table_name.strip())  # delete table data
@@ -116,16 +127,27 @@ def main():
                 print('WRONG SQL INPUT!')
             print('#----------------------------------------------------#')
             choice = input(PROMPT_STR)
-        elif choice == '6':  # delete a line of data from the storage file given the keyword
+        elif choice == '6':  # delete a line of data from the storage file given the keyword(modefied later)
             table_name = input('please input the name of the table to be deleted from:')
-            field_name = input('please input the field name and the corresponding keyword (fieldname:keyword):')
-            # to the students: to be inserted here, delete the line from data files
+            field_name, keyword = input('please input the field name and the corresponding keyword (fieldname:keyword):').split(':')
+            dataObj = storage_db.Storage(table_name)
+            if dataObj.delete_record(field_name, keyword):
+                print('Record deleted successfully.')
+            else:
+                print('Failed to delete record.')
+            del dataObj
             choice = input(PROMPT_STR)
-        elif choice == '7':  # update a line of data given the keyword
+        elif choice == '7':  # update a line of data given the keyword(modefied later)
             table_name = input('please input the name of the table:')
             field_name = input('please input the field name:')
-            field_name_value = input('please input the old value of the field:')
-            # to the students: to be inserted here, update the line according to the user input
+            old_value = input('please input the old value of the field:')
+            new_value = input('please input the new value of the field:')
+            dataObj = storage_db.Storage(table_name)
+            if dataObj.update_record(field_name, old_value, new_value):
+                print('Record updated successfully.')
+            else:
+                print('Failed to update record.')
+            del dataObj
             choice = input(PROMPT_STR)
         elif choice == '.':
             print('main loop finishies')

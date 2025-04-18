@@ -1,6 +1,7 @@
 # -----------------------------------------------------------------------
 # storage_db.py
 # Author: Jingyu Han  hjymail@163.com
+# modified by: Xinjian Zhang   278254081@qq.com
 # -----------------------------------------------------------------------
 # the module is to store tables in files
 # Each table is stored in a separate file with the suffix ".dat".
@@ -66,14 +67,14 @@ class Storage(object):
         tablename.strip()
         self.record_list = []
         self.record_Position = []
-        if not os.path.exists(tablename + '.dat'.encode('utf-8')):  # the file corresponding to the table does not exist
-            print('table file '.encode('utf-8') + tablename + '.dat does not exists'.encode('utf-8'))
-            self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'wb+')
+        if not os.path.exists(tablename + '.dat'):  # Remove .encode('utf-8')
+            print(f"Table file {tablename}.dat does not exist.")
+            self.f_handle = open(tablename + '.dat', 'wb+')
             self.f_handle.close()
             self.open = False
-            print(tablename + '.dat has been created'.encode('utf-8'))
-        self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'rb+')
-        print('table file '.encode('utf-8') + tablename + '.dat has been opened'.encode('utf-8'))
+            print(f"{tablename}.dat has been created.")
+        self.f_handle = open(tablename + '.dat', 'rb+')
+        print(f"Table file {tablename}.dat has been opened.")
         self.open = True
         self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
         self.f_handle.seek(0)
@@ -269,8 +270,8 @@ class Storage(object):
             self.open = False
         # step 2: remove the file from os   
         tableName.strip()
-        if os.path.exists(tableName + '.dat'.encode('utf-8')):
-            os.remove(tableName + '.dat'.encode('utf-8'))
+        if os.path.exists(tableName + '.dat'):
+            os.remove(tableName + '.dat')
         return True
 
     # ------------------------------
@@ -292,3 +293,50 @@ class Storage(object):
             self.f_handle.write(self.buf)
             self.f_handle.flush()
             self.f_handle.close()
+
+    # ----------------------------------------
+    # delete_record
+    # This method deletes records from the table based on a specific field and keyword.
+    # Input:
+    #   field_name: The name of the field to match.
+    #   keyword: The value of the field to match for deletion.
+    # Output:
+    #   True if records were successfully deleted, False otherwise.
+    # ----------------------------------------
+    def delete_record(self, field_name, keyword):#(modified later)
+        field_index = -1
+        for idx, field in enumerate(self.field_name_list):
+            if field[0].strip() == field_name.strip():
+                field_index = idx
+                break
+        if field_index == -1:
+            print(f"Field {field_name} not found!")
+            return False
+        self.record_list = [record for record in self.record_list if record[field_index].strip() != keyword.strip()]
+        print(f"Records with {field_name} = {keyword} have been deleted.")
+        return True
+
+    # ----------------------------------------
+    # update_record
+    # This method updates records in the table based on a specific field and old value.
+    # Input:
+    #   field_name: The name of the field to match.
+    #   old_value: The current value of the field to match.
+    #   new_value: The new value to update the field with.
+    # Output:
+    #   True if records were successfully updated, False otherwise.
+    # ----------------------------------------
+    def update_record(self, field_name, old_value, new_value):#(modified later)
+        field_index = -1
+        for idx, field in enumerate(self.field_name_list):
+            if field[0].strip() == field_name.strip():
+                field_index = idx
+                break
+        if field_index == -1:
+            print(f"Field {field_name} not found!")
+            return False
+        for record in self.record_list:
+            if record[field_index].strip() == old_value.strip():
+                record[field_index] = new_value.strip()
+        print(f"Records with {field_name} = {old_value} have been updated to {new_value}.")
+        return True

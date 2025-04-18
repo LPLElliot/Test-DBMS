@@ -65,9 +65,8 @@ class Schema(object):
 
     def viewTableNames(self):  # to list all the table names in the all.sch
         print ('viewtablenames begin to execute')
-        # to be inserted here
         for i in self.headObj.tableNames:
-            print ('Table name is     ', i[0])
+            print('Table name is', i[0].strip())  # Strip unicode characters(modefied later)
         print ('execute Done!')
 
     #------------------------
@@ -85,7 +84,12 @@ class Schema(object):
                 print '|'.join(tmp)
                 return tmp
         '''
-        # to be inserted here
+        if table_name.strip() in self.headObj.tableFields:
+            fields = self.headObj.tableFields[table_name.strip()]
+            for field in fields:
+                print(f"Field Name: {field[0].strip()}, Type: {field[1]}, Length: {field[2]}")
+        else:
+            print('Table not found!')# Print an error message if the table does not exist(modefied later)
 
     # ------------------------------------------------
     # constructor of the class
@@ -133,26 +137,26 @@ class Schema(object):
                 for i in range(tempTableNum):
                     # fetch the table name in tableNameHead
                     tempName, = struct.unpack_from('!10s', buf,META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN)  # Note: '!' means no memory alignment
-                    print ("tablename is ", tempName)
+                    print ("tablename is ", tempName.decode('utf-8').strip())
                     # fetch the number of fields in the table in tableNameHead
                     tempNum, = struct.unpack_from('!i', buf, META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN + 10)
-                    print ('number of fields of table ', tempName, ' is ', tempNum)
+                    print ('number of fields of table ', tempName.decode('utf-8').strip(), ' is ', tempNum)
                     # fetch the offset where field names are stored in the body
                     tempPos, = struct.unpack_from('!i', buf,META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN + 10 + struct.calcsize('i'))
                     print ("tempPos in body is ", tempPos)
-                    tempNameMix = (tempName.strip(), tempNum, tempPos)
+                    tempNameMix = (tempName.decode('utf-8').strip(), tempNum, tempPos)
                     nameList.append(tempNameMix)  # It is a triple
                     # the following is to fetch field information from body section and each field is  (fieldname,fieldtype,fieldlength)
                     if tempNum > 0: # the number of fields is greater than 0
                         fields = []  # it is a list
                         for j in range(tempNum):
                             tempFieldName,tempFieldType,tempFieldLength = struct.unpack_from('!10sii',buf, tempPos + j * MAX_FIELD_LEN)
-                            print ('field name is ', tempFieldName.strip())
+                            print ('field name is ', tempFieldName.decode('utf-8').strip())
                             print ('field type is', tempFieldType)
                             print ('filed length is', tempFieldLength)
                             tempFieldTuple=(tempFieldName,tempFieldType,tempFieldLength)
                             fields.append(tempFieldTuple)
-                        fieldsList[tempName.strip()]=fields
+                        fieldsList[tempName.decode('utf-8').strip()]=fields
                 # the main memory structure for schema is constructed
                 self.headObj = head_db.Header(nameList, fieldsList, True, tempTableNum, tempOffset)
 
@@ -317,4 +321,4 @@ class Schema(object):
     #       table_name_list: the returned list of table names
     # --------------------------------
     def get_table_name_list(self):
-        return map(lambda x:x[0],self.headObj.tableNames)
+        return [x[0].strip() for x in self.headObj.tableNames]  # Strip spaces from each table name(modified later)
