@@ -19,9 +19,20 @@ import parser_db  # for yacc, where ddata is tored in binary format
 import common_db  # the global variables, functions, constants in the program
 import query_plan_db  # construct the query plan and execute it
 
-PROMPT_STR = 'Input your choice  \n1:add a new table structure and data \n2:delete a table structure and data\
-\n3:view a table structure and data \n4:delete all tables and data \n5:select from where clause\
-\n6:delete a row according to field keyword \n7:update a row according to field keyword \n. to quit):\n'
+PROMPT_STR = '''
+ +-----------------------------------------+
+ |               MENU OPTIONS              |
+ +-----------------------------------------+
+ | 1: Add a new table structure and data   |
+ | 2: Delete a table structure and data    |
+ | 3: View a table structure and data      |
+ | 4: Delete all tables and data           |
+ | 5: SELECT FROM WHERE clause             |
+ | 6: Delete a row by field keyword        |
+ | 7: Update a row by field keyword        |
+ | .: Quit                                 |
+ +-----------------------------------------+
+ Input your choice: '''  # the prompt string for user input(to be modified later)
 
 # --------------------------
 # the main loop, which needs further implementation
