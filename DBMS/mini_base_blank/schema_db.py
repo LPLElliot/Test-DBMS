@@ -76,7 +76,7 @@ class Schema(object):
     #       table_name
     #------------------------------
     def viewTableStructure(self, table_name):
-        print('the structure of table '.encode('utf-8')+table_name+' is as follows:'.encode('utf-8'))
+        print(('the structure of table ' + table_name.decode('utf-8') + ' is as follows:'))
         '''
         tmp=[]
         for i in range(len(self.headObj.tableNames)):
@@ -133,13 +133,13 @@ class Schema(object):
                 for i in range(tempTableNum):
                     # fetch the table name in tableNameHead
                     tempName, = struct.unpack_from('!10s', buf,META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN)  # Note: '!' means no memory alignment
-                    print ("tablename is ", tempName)
+                    print(f"tablename is {tempName.decode('utf-8').strip()}")
                     # fetch the number of fields in the table in tableNameHead
                     tempNum, = struct.unpack_from('!i', buf, META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN + 10)
-                    print ('number of fields of table ', tempName, ' is ', tempNum)
+                    print(f"number of fields of table {tempName.decode('utf-8').strip()} is {tempNum}")
                     # fetch the offset where field names are stored in the body
                     tempPos, = struct.unpack_from('!i', buf,META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN + 10 + struct.calcsize('i'))
-                    print ("tempPos in body is ", tempPos)
+                    print(f"tempPos in body is {tempPos}")
                     tempNameMix = (tempName.strip(), tempNum, tempPos)
                     nameList.append(tempNameMix)  # It is a triple
                     # the following is to fetch field information from body section and each field is  (fieldname,fieldtype,fieldlength)
@@ -147,7 +147,7 @@ class Schema(object):
                         fields = []  # it is a list
                         for j in range(tempNum):
                             tempFieldName,tempFieldType,tempFieldLength = struct.unpack_from('!10sii',buf, tempPos + j * MAX_FIELD_LEN)
-                            print ('field name is ', tempFieldName.strip())
+                            print (f"field name is {tempFieldName.decode('utf-8').strip()}")
                             print ('field type is', tempFieldType)
                             print ('filed length is', tempFieldLength)
                             tempFieldTuple=(tempFieldName,tempFieldType,tempFieldLength)

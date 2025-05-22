@@ -67,13 +67,13 @@ class Storage(object):
         self.record_list = []
         self.record_Position = []
         if not os.path.exists(tablename + '.dat'.encode('utf-8')):  # the file corresponding to the table does not exist
-            print('table file '.encode('utf-8') + tablename + '.dat does not exists'.encode('utf-8'))
+            print(('table file ' + tablename.decode('utf-8') + '.dat does not exists'))
             self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'wb+')
             self.f_handle.close()
             self.open = False
-            print(tablename + '.dat has been created'.encode('utf-8'))
+            print(('table file ' + tablename.decode('utf-8') + '.dat has been created'))
         self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'rb+')
-        print('table file '.encode('utf-8') + tablename + '.dat has been opened'.encode('utf-8'))
+        print(f'table file {tablename.decode("utf-8")}.dat has been opened')
         self.open = True
         self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
         self.f_handle.seek(0)
