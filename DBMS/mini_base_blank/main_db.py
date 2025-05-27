@@ -5,11 +5,6 @@
 # -----------------------------------
 # This is the main loop of the program
 # ---------------------------------------
-
-import struct
-import sys
-import ctypes
-import os
 import head_db  # the main memory structure of table schema
 import schema_db  # the module to process table schema
 import storage_db  # the module to process the storage of instance
@@ -33,7 +28,6 @@ PROMPT_STR = '''
  | .: Quit                                 |
  +-----------------------------------------+
  Input your choice: '''  # the prompt string for user input(to be modified later)
-
 # --------------------------
 # the main loop, which needs further implementation
 # ---------------------------
@@ -41,7 +35,7 @@ def main():
     # main loops for the whole program
     print('main function begins to execute')
     # The instance data of table is stored in binary format, which corresponds to chapter 2-8 of textbook
-    schemaObj = schema_db.Schema()  # to create a schema object, which contains the schema of all tables
+    schemaObj = schema_db.Schema(debug=False)  # to create a schema object, which contains the schema of all tables
     dataObj = None
     choice = input(PROMPT_STR)
     while True:
@@ -62,8 +56,7 @@ def main():
                 record = []
                 Field_List = dataObj.getFieldList()
                 for x in Field_List:
-                    s = 'Input field name is: ' + str(x[0].strip()) + '  field type is: ' + str(x[1]) + \
-                        ' field maximum length is: ' + str(x[2]) + '\n'
+                    s = 'Input field name is: ' + str(x[0].decode('utf-8').strip()) + '  field type is: ' + str(x[1]) + '  field maximum length is: ' + str(x[2]) + '\n'
                     record.append(input(s))
                 if dataObj.insert_record(record):  # add a row
                     print('OK!')
@@ -88,13 +81,17 @@ def main():
                 print('there is no table '.encode('utf-8') + table_name + ' in the schema file'.encode('utf-8'))
             choice = input(PROMPT_STR)
         elif choice == '3':  # view the table structure and all the data
-            print(schemaObj.headObj.tableNames)
+            print("Current tables:")
+            for t in schemaObj.headObj.tableNames:
+                if isinstance(t[0], bytes):
+                    print(t[0].decode('utf-8').strip())
+                else:
+                    print(str(t[0]).strip())
             table_name = input('please input the name of the table to be displayed:')
             if isinstance(table_name,str):
                 table_name=table_name.encode('utf-8')
             if table_name.strip():
                 if schemaObj.find_table(table_name.strip()):
-                    schemaObj.viewTableStructure(table_name)  # to be implemented
                     dataObj = storage_db.Storage(table_name)  # create an object for the data of table
                     dataObj.show_table_data()  # view all the data of the table
                     del dataObj
@@ -103,7 +100,6 @@ def main():
             choice = input(PROMPT_STR)
         elif choice == '4':  # delete all the table structures and their data
             table_name_list = list(schemaObj.get_table_name_list())
-            # to be inserted here -> to delete from data files
             for i in range(len(table_name_list)):
                 table_name = table_name_list[i]
                 table_name.strip()

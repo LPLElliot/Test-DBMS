@@ -98,16 +98,16 @@ class Storage(object):
                 beginIndex = beginIndex + struct.calcsize('!iii')
                 # the following is to write the field name,field type and field length into the buffer in turn
                 for i in range(int(self.num_of_fields)):
-                    field_name = input("please input the name of field " + str(i) + " :")
+                    field_name = input("please input the name of field " + str(i+1) + " :")
                     if len(field_name) < 10:
                         field_name = ' ' * (10 - len(field_name.strip())) + field_name
                     while True:
                         field_type = input(
-                            "please input the type of field(0-> str; 1-> varstr; 2-> int; 3-> boolean) " + str(i) + " :")
+                            "please input the type of field(0-> str; 1-> varstr; 2-> int; 3-> boolean) " + str(i+1) + " :")
                         if int(field_type) in [0, 1, 2, 3]:
                             break
                     # to need further modification here
-                    field_length = input("please input the length of field " + str(i) + " :")
+                    field_length = input("please input the length of field " + str(i+1) + " :")
                     temp_tuple = (field_name, int(field_type), int(field_length))
                     self.field_name_list.append(temp_tuple)
                     if isinstance(field_name, str):
@@ -127,7 +127,8 @@ class Storage(object):
                 field_name, field_type, field_length = struct.unpack_from('!10sii', self.dir_buf,beginIndex + i * struct.calcsize('!10sii'))  # i means no memory alignment
                 temp_tuple = (field_name, field_type, field_length)
                 self.field_name_list.append(temp_tuple)
-                print("the " + str(i) + "th field information (field name,field type,field length) is ", temp_tuple)
+                print(f"the {i+1}th field information (field name, field type, field length) is "
+          f"('{field_name.decode('utf-8').strip()}', {field_type}, {field_length})")
         # print self.field_name_list
         record_head_len = struct.calcsize('!ii10s')
         record_content_len = sum(map(lambda x: x[2], self.field_name_list))
@@ -250,10 +251,11 @@ class Storage(object):
     #       t
     # -------------------------------------
     def show_table_data(self):
-        print('|    '.join(map(lambda x: x[0].decode('utf-8').strip(), self.field_name_list)))  # show the structure
+        print('|'.join(map(lambda x: x[0].decode('utf-8').strip(), self.field_name_list)))  # show the structure
         # the following is to show the data of the table
         for record in self.record_list:
-            print(record)
+            display = [field.decode('utf-8').strip() if isinstance(field, bytes) else str(field) for field in record]
+            print('|'.join(display))
 
     # --------------------------------
     # to delete  the data file

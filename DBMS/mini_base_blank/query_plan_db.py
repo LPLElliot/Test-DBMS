@@ -1,16 +1,14 @@
 #------------------------------------------------
 # query_plan_db.py
 # author: Jingyu Han  hjymail@163.com
-# modified by:Shuting Guo shutingnjupt@gmail.com
+# modified by:
 #------------------------------------------------
-
 #----------------------------------------------------------
 # this module can turn a syntax tree into a query plan tree
 #----------------------------------------------------------
 import common_db
 import storage_db
 import itertools 
-
 #--------------------------------
 # to import the syntax tree, which is defined in parser_db.py
 #-------------------------------------------
@@ -32,7 +30,6 @@ class parseNode:
         self.from_list = from_list
     def update_where_list(self,where_list):
         self.where_list = where_list
-
 #--------------------------------
 # Author: Shuting Guo shutingnjupt@gmail.com
 # to extract data from gloal variable syn_tree
@@ -50,7 +47,6 @@ def extract_sfw_data():
         PN = parseNode()
         destruct(syn_tree,PN)
         return PN.get_sel_list(),PN.get_from_list(),PN.get_where_list()
-
 #---------------------------------
 # Author: Shuting Guo shutingnjupt@gmail.com
 # Query  : SFW
@@ -89,7 +85,6 @@ def show(nodeobj,tmpList):
                 show(nodeobj.children[i],tmpList)
     if isinstance(nodeobj,str):
         tmpList.append(nodeobj)
-
 #---------------------------
 #input:
 #       from_list
@@ -108,7 +103,6 @@ def construct_from_node(from_list):
         elif len(from_list)>2:
             right_node=common_db.Node(from_list[len(from_list)-1],None)
             return common_db.Node('X',[construct_from_node(from_list[0:len(from_list)-1]),right_node])
-
 #---------------------------
 #input:
 #       where_list
@@ -121,7 +115,6 @@ def construct_where_node(from_node,where_list):
        return common_db.Node('Filter',[from_node],where_list)
     elif from_node and len(where_list)==0:# there is no where clause
         return from_node
-
 #---------------------------
 #input:
 #       sel_list
@@ -132,7 +125,6 @@ def construct_where_node(from_node,where_list):
 def construct_select_node(wf_node,sel_list):
     if wf_node and len(sel_list)>0:
         return common_db.Node('Proj',[wf_node],sel_list)
-
 #----------------------------------
 # Author: Shuting Guo shutingnjupt@gmail.com
 # to execute the query plan and return the result
@@ -264,7 +256,6 @@ def execute_logical_tree():
             print ('WRONG SQL INPUT!')
     else:
         print ('there is no query plan tree for the execution')
-
 # --------------------------------
 # Author: Shuting Guo shutingnjupt@gmail.com
 # to construct a logical query plan tree
@@ -285,14 +276,3 @@ def construct_logical_tree():
         #    common_db.show(common_db.global_logical_tree)
     else:
         print ('there is no data in the syntax tree in the construct_logical_tree')
-
-'''
-# the following is to test the code
-from_list1=['a','b','c','d','e','f','g']
-tree_from=construct_from_node(from_list1)
-where_list1=[('x.c','=','y.c'),('z','=','w')]
-tree_where=construct_where_node(tree_from,where_list1)
-sel_list1=['f1','f2']
-syn_tree=construct_select_node(tree_where,sel_list1)
-print extract_sfw_data()
-'''

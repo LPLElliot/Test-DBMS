@@ -218,19 +218,3 @@ class Index(object):
                         print ('wrong, it is should be a leaf node')
                 else:
                     print ('the information in the index file is wrong')
-            
-            
-            
-        
-        
-
-
-
-
-
-# the following is to test
-index_obj=Index('all');
-index_obj.insert_index_entry('a',4,1)
-#test()
-
-        

@@ -1,7 +1,7 @@
 #------------------------------------------------
 # mega_stroage.py
 # author: Jingyu Han, hjymail@163.com
-# modified by:Shuting Guo, shutingnjupt@gmail.com
+# modified by:
 #------------------------------------------------
 '''
 mega_storage.py is to store table data in separate files.
@@ -12,7 +12,6 @@ The file is in ASCII text format, not binary one.
 Each line corresponds to one record and different field values are separated by |
 '''
 import os
-
 #--------------------------------------------
 # the class can store table data into files
 # functions include insert, delete and update
@@ -40,7 +39,6 @@ class MegaStorage(object):
 			for each_line in self.f_handle:
 				self.record_list.append(each_line.strip())
 				# print each_line.strip()
-
 	# ----------------------
 	# destruct of class
 	# ------------------------
@@ -48,7 +46,6 @@ class MegaStorage(object):
 		print ("__del__ of ", MegaStorage.__name__)
 		if self.f_handle:
 			self.f_handle.close()
-
 	# --------------------------------
 	# to insert only one record into table, the values are input by users
 	# input
@@ -68,7 +65,6 @@ class MegaStorage(object):
 			self.f_handle.flush()
 		else:  # there is no schema given
 			print ('wrong in insert_record for the schema is not given')
-
 	# --------------------------------
 	# to view all records in the table
 	# input
@@ -77,7 +73,6 @@ class MegaStorage(object):
 		if len(self.record_list) > 0:
 			for i in range(len(self.record_list)):
 				print (self.record_list[i])
-
 	# --------------------------------
 	# to delete one record from the table
 	# input
@@ -97,7 +92,6 @@ class MegaStorage(object):
 		self.f_handle.write('\n'.join(self.record_list))  #write record_list
 		self.f_handle.write('\n')
 		self.f_handle.flush()
-
 	# -------------------------------
 	# delete all records from the table
 	# ---------------------------------
@@ -105,7 +99,6 @@ class MegaStorage(object):
 		self.f_handle.truncate(0)
 		self.f_handle.seek(0)
 		self.f_handle.flush()
-
 	#--------------------------
 	# to delete the data file
 	#--------------------------
@@ -113,7 +106,6 @@ class MegaStorage(object):
 		if os.path.exists(tablename+'.txt'):
 			self.f_handle.close()
 			os.remove(tablename+'.txt')
-
 	# --------------------------------
 	# to update one record of the table
 	# input

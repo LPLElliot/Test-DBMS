@@ -69,30 +69,14 @@ class Schema(object):
         for i in self.headObj.tableNames:
             print ('Table name is     ', i[0])
         print ('execute Done!')
-
-    #------------------------
-    # to show the schema of given table
-    # input
-    #       table_name
-    #------------------------------
-    def viewTableStructure(self, table_name):
-        print(('the structure of table ' + table_name.decode('utf-8') + ' is as follows:'))
-        '''
-        tmp=[]
-        for i in range(len(self.headObj.tableNames)):
-            if self.headObj.tableNames[i][0] == table_name:
-                tmp = [j.strip() for j in self.headObj.tableFields[i]]
-                print '|'.join(tmp)
-                return tmp
-        '''
-        # to be inserted here
-
     # ------------------------------------------------
     # constructor of the class
     # ------------------------------------------------
-    def __init__(self):
-        print ('__init__ of Schema')
-        print ('schema fileName is ' + Schema.fileName)
+    def __init__(self,debug=False):
+        self.debug = debug
+        if self.debug:
+            print('__init__ of Schema')
+            print('schema fileName is ' + Schema.fileName)
         self.fileObj = open(Schema.fileName, 'rb+')  # in binary format
         # read all data from schema file
         bufLen = META_HEAD_SIZE + TABLE_NAME_HEAD_SIZE + MAX_FIELD_SECTION_SIZE  # the length of metahead, table name entries and feildName sections
@@ -108,38 +92,45 @@ class Schema(object):
             self.fileObj.flush()
             # the following is to create a main memory structure for the schema
             tableNameList = []
-            fieldNameList = {}  # it is a dictionary
+            fieldNameList = {}  
             nameList = []
             fieldsList = {}
             self.headObj = head_db.Header(nameList, fieldsList,False, 0, self.body_begin_index)
-            print ('metaHead of schema has been written to all.sch and the Header ojbect created')
+            if self.debug:
+                print('metaHead of schema has been written to all.sch and the Header object created')
         else:  # there is something in the schema file
-            print ("there is something  in the all.sch")
+            if self.debug:
+                print ("there is something  in the all.sch")
             # in the following ? denotes bool type and  i denotes int type
             isStored, tempTableNum, tempOffset = struct.unpack_from('!?ii', buf, 0)   #link:https://docs.python.org/2/library/struct.html
-            print ("tableNum in schema file is ", tempTableNum)
-            print ("isStored in schema file is ", isStored)
-            print ("offset of body in schema  file is ", tempOffset)
             Schema.body_begin_index = tempOffset
             nameList=[]
             fieldsList={}
-             # it is a dictionary
-            if isStored == False:  # only the meta head exists, but there is no table information in the schema file
+            if not isStored:
                 self.headObj = head_db.Header(nameList, fieldsList, False, 0, BODY_BEGIN_INDEX)
-                print ("there is no table in the file")
-            else:  # there is information of some tables
-                print( "there is at least one table in the schema file ")
-                # the following is to fetch the tableNameHead from the buffer
+                if self.debug:
+                    print('there is no table in the file')
+                else:
+                    print("Schema loaded. No tables found.")
+            else:
+                if self.debug:
+                    print(f'tableNum in schema file is {tempTableNum}')
+                    print(f'isStored in schema file is {isStored}')
+                    print(f'offset of body in schema file is {tempOffset}')
+                print(f"Schema loaded. Table count: {tempTableNum}")
                 for i in range(tempTableNum):
                     # fetch the table name in tableNameHead
                     tempName, = struct.unpack_from('!10s', buf,META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN)  # Note: '!' means no memory alignment
-                    print(f"tablename is {tempName.decode('utf-8').strip()}")
+                    if self.debug:
+                        print(f"table {i+1} is {tempName.decode('utf-8').strip()}")
                     # fetch the number of fields in the table in tableNameHead
                     tempNum, = struct.unpack_from('!i', buf, META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN + 10)
-                    print(f"number of fields of table {tempName.decode('utf-8').strip()} is {tempNum}")
+                    if self.debug:
+                        print(f"number of fields of table {tempName.decode('utf-8').strip()} is {tempNum}")
                     # fetch the offset where field names are stored in the body
                     tempPos, = struct.unpack_from('!i', buf,META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN + 10 + struct.calcsize('i'))
-                    print(f"tempPos in body is {tempPos}")
+                    if self.debug:
+                        print(f"tempPos in body is {tempPos}")
                     tempNameMix = (tempName.strip(), tempNum, tempPos)
                     nameList.append(tempNameMix)  # It is a triple
                     # the following is to fetch field information from body section and each field is  (fieldname,fieldtype,fieldlength)
@@ -147,9 +138,10 @@ class Schema(object):
                         fields = []  # it is a list
                         for j in range(tempNum):
                             tempFieldName,tempFieldType,tempFieldLength = struct.unpack_from('!10sii',buf, tempPos + j * MAX_FIELD_LEN)
-                            print (f"field name is {tempFieldName.decode('utf-8').strip()}")
-                            print ('field type is', tempFieldType)
-                            print ('filed length is', tempFieldLength)
+                            if self.debug:
+                                print (f"field name is {tempFieldName.decode('utf-8').strip()}")
+                                print ('field type is', tempFieldType)
+                                print ('filed length is', tempFieldLength)
                             tempFieldTuple=(tempFieldName,tempFieldType,tempFieldLength)
                             fields.append(tempFieldTuple)
                         fieldsList[tempName.strip()]=fields
@@ -199,15 +191,13 @@ class Schema(object):
             fieldBuff = ctypes.create_string_buffer(MAX_FIELD_LEN * len(fieldList))
             beginIndex = 0
             for i in range(len(fieldList)):
-                (fieldName,fieldType,fieldLength)=fieldList[i]
-                if len(fieldName.strip())<10:
-                    if isinstance(fieldName,str):
-                        fieldName=fieldName.encode('utf-8')
-                    filledFieldName = (' ' * (MAX_FIELD_LEN - len(fieldName.strip()))).encode('utf-8') + fieldName
-                if isinstance(filledFieldName,str):
-                    filledFieldName=filledFieldName.encode('utf-8')
-                struct.pack_into('!10sii', fieldBuff, beginIndex, filledFieldName,int(fieldType),int(fieldLength))
-                beginIndex = beginIndex + MAX_FIELD_LEN
+                fieldName, fieldType, fieldLength = fieldList[i]
+                if isinstance(fieldName, bytes):
+                    fieldName = fieldName.decode('utf-8')
+                fieldName = fieldName.strip()
+                filledFieldName = fieldName.ljust(MAX_FIELD_NAME_LEN)  # 右补齐到10字节
+                struct.pack_into('!10sii', fieldBuff, beginIndex, filledFieldName.encode('utf-8'), int(fieldType), int(fieldLength))
+                beginIndex += MAX_FIELD_LEN
             writePos = self.headObj.offsetOfBody
             self.fileObj.seek(writePos)
             self.fileObj.write(fieldBuff)
