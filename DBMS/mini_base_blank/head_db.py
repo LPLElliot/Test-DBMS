@@ -1,6 +1,7 @@
 #---------------------------------
 # head_db.py
 # author: Jingyu Han    hjymail@163.com
+# modified by: Xinjian Zhang   278254081@qq.com
 #--------------------------------------
 # the main memory structure of table schema
 #------------------------------------

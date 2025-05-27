@@ -5,7 +5,6 @@
 # -----------------------------------
 # This is the main loop of the program
 # ---------------------------------------
-import head_db  # the main memory structure of table schema
 import schema_db  # the module to process table schema
 import storage_db  # the module to process the storage of instance
 import query_plan_db  # for SQL clause of which data is stored in binary format
@@ -13,8 +12,8 @@ import lex_db  # for lex, where data is stored in binary format
 import parser_db  # for yacc, where ddata is tored in binary format
 import common_db  # the global variables, functions, constants in the program
 import query_plan_db  # construct the query plan and execute it
-
 PROMPT_STR = '''
+
  +-----------------------------------------+
  |               MENU OPTIONS              |
  +-----------------------------------------+
@@ -77,7 +76,7 @@ def main():
                 else:
                     print('the deletion from schema file fail')
             else:
-                print('there is no table '.encode('utf-8') + table_name + ' in the schema file'.encode('utf-8'))
+                print(f"there is no table {table_name.decode('utf-8')} in the schema file")
             choice = input(PROMPT_STR)
         elif choice == '3':  # view the table structure and all the data
             print("Current tables:")

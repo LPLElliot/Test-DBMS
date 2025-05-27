@@ -1,7 +1,7 @@
 #------------------------------------------------
 # query_plan_db.py
 # author: Jingyu Han  hjymail@163.com
-# modified by:
+# modified by: Xinjian Zhang   278254081@qq.com
 #------------------------------------------------
 #----------------------------------------------------------
 # this module can turn a syntax tree into a query plan tree
@@ -31,7 +31,6 @@ class parseNode:
     def update_where_list(self,where_list):
         self.where_list = where_list
 #--------------------------------
-# Author: Shuting Guo shutingnjupt@gmail.com
 # to extract data from gloal variable syn_tree
 # output:
 #       sel_list
@@ -48,7 +47,6 @@ def extract_sfw_data():
         destruct(syn_tree,PN)
         return PN.get_sel_list(),PN.get_from_list(),PN.get_where_list()
 #---------------------------------
-# Author: Shuting Guo shutingnjupt@gmail.com
 # Query  : SFW
 #   SFW  : SELECT SelList FROM FromList WHERE Condition
 # SelList: TCNAME COMMA SelList
@@ -126,7 +124,6 @@ def construct_select_node(wf_node,sel_list):
     if wf_node and len(sel_list)>0:
         return common_db.Node('Proj',[wf_node],sel_list)
 #----------------------------------
-# Author: Shuting Guo shutingnjupt@gmail.com
 # to execute the query plan and return the result
 # input
 #       global logical tree
@@ -257,7 +254,6 @@ def execute_logical_tree():
     else:
         print ('there is no query plan tree for the execution')
 # --------------------------------
-# Author: Shuting Guo shutingnjupt@gmail.com
 # to construct a logical query plan tree
 # output:
 #       global_logical_tree

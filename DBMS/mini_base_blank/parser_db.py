@@ -1,7 +1,7 @@
 #-----------------------------
 # parser_db.py
 # author: Jingyu Han   hjymail@163.com
-# modified by:
+# modified by: Xinjian Zhang   278254081@qq.com
 #-------------------------------
 # the module is to construct a syntax tree for a "select from where" SQL clause
 # the output is a syntax tree

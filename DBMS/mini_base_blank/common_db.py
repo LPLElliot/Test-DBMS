@@ -1,7 +1,7 @@
 #----------------------------------------
 # common_db.py
 # author: Jingyu Han   hjymail@163.com
-# modified by:
+# modified by: Xinjian Zhang   278254081@qq.com
 #--------------------------------------------
 # the module provides the constants, class, data structures which
 # are used for all the program

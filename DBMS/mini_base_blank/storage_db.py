@@ -11,6 +11,7 @@
 # ---------------------------------------------------
 # block_0|block_1|...|block_n
 # ----------------------------------------------------------------
+import datetime
 from common_db import BLOCK_SIZE
 # structure of block_0, which stores the meta information and field information
 # ---------------------------------------------------------------------------------
@@ -236,7 +237,7 @@ class Storage(object):
         self.f_handle.flush()
         # update data
         record_schema_address = struct.calcsize('!iii')
-        update_time = '2016-11-16'  # update time
+        update_time = datetime.datetime.now().strftime('%Y-%m-%d')  # update time
         self.f_handle.seek(BLOCK_SIZE * last_Position[0] + beginIndex)
         self.buf = ctypes.create_string_buffer(record_len)
         struct.pack_into('!ii10s', self.buf, 0, record_schema_address, record_content_len, update_time.encode('utf-8'))

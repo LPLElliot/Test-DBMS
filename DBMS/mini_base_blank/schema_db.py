@@ -264,6 +264,7 @@ class Schema(object):
         self.fileObj.flush()
 
     # ----------------------------------------------
+    # Author: Xinjian Zhang
     # to delete the schema of a table from the schema file
     # input
     #       table_name: the table to be deleted
@@ -271,33 +272,40 @@ class Schema(object):
     #       True or False
     # ------------------------------------------------
     def delete_table_schema(self, table_name):
-        tmpIndex=-1
+        tmpIndex = -1
+        if isinstance(table_name, str):
+            table_name = table_name.encode('utf-8')
+        table_name = table_name.strip()
         for i in range(len(self.headObj.tableNames)):
-            if self.headObj.tableNames[i][0].strip()==table_name.strip():
-                tmpIndex=i
-        if tmpIndex>=0:
-            # modify the main memory structure
+            tname = self.headObj.tableNames[i][0]
+            if isinstance(tname, bytes):
+                tname = tname.strip()
+            else:
+                tname = str(tname).strip().encode('utf-8')
+            if tname == table_name:
+                tmpIndex = i
+                break
+        if tmpIndex >= 0:
             del self.headObj.tableNames[tmpIndex]
-            del self.headObj.tableFields[table_name.strip()]
-            #print self.headObj.tableFields
-            self.headObj.lenOfTableNum-=1
-            if len(self.headObj.tableNames)>0: # there is at least one table after the deletion
-                name_list = map(lambda x: x[0], self.headObj.tableNames)
-                field_num_per_table = map(lambda x: x[1], self.headObj.tableNames)
-                table_offset= list(map(lambda x: x[2], self.headObj.tableNames))
+            del self.headObj.tableFields[table_name]
+            self.headObj.lenOfTableNum -= 1
+            if len(self.headObj.tableNames) > 0:
+                name_list = [x[0] for x in self.headObj.tableNames]
+                field_num_per_table = [x[1] for x in self.headObj.tableNames]
+                table_offset = [0] * len(self.headObj.tableNames)
                 table_offset[0] = BODY_BEGIN_INDEX
-                for idx in range(1,len(table_offset)):
-                    table_offset[idx] = table_offset[idx-1] + field_num_per_table[idx-1]*MAX_FIELD_LEN   
-                self.headObj.tableNames=zip(name_list,field_num_per_table,table_offset)
-                self.headObj.offsetOfBody=self.headObj.tableNames[-1][2]+self.headObj.tableNames[-1][1]*MAX_FIELD_LEN
+                for idx in range(1, len(table_offset)):
+                    table_offset[idx] = table_offset[idx-1] + field_num_per_table[idx-1] * MAX_FIELD_LEN
+                self.headObj.tableNames = list(zip(name_list, field_num_per_table, table_offset))
+                self.headObj.offsetOfBody = self.headObj.tableNames[-1][2] + self.headObj.tableNames[-1][1] * MAX_FIELD_LEN
                 self.WriteBuff()
-            else:# there is no table after the deletion
-                print (False)
+            else:
+                print(False)
                 self.headObj.offsetOfBody = BODY_BEGIN_INDEX
                 self.headObj.isStored = False
             return True
         else:
-            print ('Cannot find the table!')
+            print('Cannot find the table!')
             return False
 
     # ---------------------------
