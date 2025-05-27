@@ -90,9 +90,7 @@ class Schema(object):
             self.fileObj.seek(0)
             self.fileObj.write(buf)
             self.fileObj.flush()
-            # the following is to create a main memory structure for the schema
-            tableNameList = []
-            fieldNameList = {}  
+            # the following is to create a main memory structure for the schema=
             nameList = []
             fieldsList = {}
             self.headObj = head_db.Header(nameList, fieldsList,False, 0, self.body_begin_index)
@@ -122,6 +120,7 @@ class Schema(object):
                     # fetch the table name in tableNameHead
                     tempName, = struct.unpack_from('!10s', buf,META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN)  # Note: '!' means no memory alignment
                     if self.debug:
+                        print("--------------------")
                         print(f"table {i+1} is {tempName.decode('utf-8').strip()}")
                     # fetch the number of fields in the table in tableNameHead
                     tempNum, = struct.unpack_from('!i', buf, META_HEAD_SIZE + i * TABLE_NAME_ENTRY_LEN + 10)
@@ -144,6 +143,8 @@ class Schema(object):
                                 print ('filed length is', tempFieldLength)
                             tempFieldTuple=(tempFieldName,tempFieldType,tempFieldLength)
                             fields.append(tempFieldTuple)
+                        if self.debug:
+                            print("---------------------")
                         fieldsList[tempName.strip()]=fields
                 # the main memory structure for schema is constructed
                 self.headObj = head_db.Header(nameList, fieldsList, True, tempTableNum, tempOffset)
@@ -195,7 +196,7 @@ class Schema(object):
                 if isinstance(fieldName, bytes):
                     fieldName = fieldName.decode('utf-8')
                 fieldName = fieldName.strip()
-                filledFieldName = fieldName.ljust(MAX_FIELD_NAME_LEN)  # 右补齐到10字节
+                filledFieldName = fieldName.ljust(MAX_FIELD_NAME_LEN) 
                 struct.pack_into('!10sii', fieldBuff, beginIndex, filledFieldName.encode('utf-8'), int(fieldType), int(fieldLength))
                 beginIndex += MAX_FIELD_LEN
             writePos = self.headObj.offsetOfBody
@@ -217,7 +218,6 @@ class Schema(object):
             self.headObj.lenOfTableNum += 1
             self.headObj.offsetOfBody += fieldNum * MAX_FIELD_LEN
             self.headObj.tableNames.append(nameContent)
-            # fieldTuple = tuple(fieldList)
             self.headObj.tableFields[tableName.strip()]=fieldList
 
     # -------------------------------

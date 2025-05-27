@@ -35,7 +35,7 @@ def main():
     # main loops for the whole program
     print('main function begins to execute')
     # The instance data of table is stored in binary format, which corresponds to chapter 2-8 of textbook
-    schemaObj = schema_db.Schema(debug=False)  # to create a schema object, which contains the schema of all tables
+    schemaObj = schema_db.Schema(debug=True)  # to create a schema object, which contains the schema of all tables(to be modified later)
     dataObj = None
     choice = input(PROMPT_STR)
     while True:
@@ -56,7 +56,7 @@ def main():
                 record = []
                 Field_List = dataObj.getFieldList()
                 for x in Field_List:
-                    s = 'Input field name is: ' + str(x[0].decode('utf-8').strip()) + '  field type is: ' + str(x[1]) + '  field maximum length is: ' + str(x[2]) + '\n'
+                    s = 'Input field name is: ' + str(x[0].decode('utf-8').strip()) + '  field type is: ' + str(x[1]) + '  field maximum length is: ' + str(x[2]) + '\n' +'-->'
                     record.append(input(s))
                 if dataObj.insert_record(record):  # add a row
                     print('OK!')
@@ -70,8 +70,7 @@ def main():
             if isinstance(table_name,str):
                 table_name=table_name.encode('utf-8')
             if schemaObj.find_table(table_name.strip()):
-                if schemaObj.delete_table_schema(
-                        table_name):  # delete the schema from the schema file
+                if schemaObj.delete_table_schema(table_name):  # delete the schema from the schema file
                     dataObj = storage_db.Storage(table_name)  # create an object for the data of table
                     dataObj.delete_table_data(table_name.strip())  # delete table content from the table file
                     del dataObj
@@ -110,7 +109,7 @@ def main():
             schemaObj.deleteAll()  # delete schema from schema file
             choice = input(PROMPT_STR)
         elif choice == '5':  # process SELECT FROM WHERE clause
-            print('#        Your Query is to SQL QUERY                  #')
+            print('#' + '-'*30 + ' SQL QUERY BEGIN ' + '-'*30 + '#')
             sql_str = input('please enter the select from where clause:')
             lex_db.set_lex_handle()  # to set the global_lexer in common_db.py
             parser_db.set_handle()  # to set the global_parser in common_db.py
@@ -121,7 +120,7 @@ def main():
                 query_plan_db.execute_logical_tree()
             except:
                 print('WRONG SQL INPUT!')
-            print('#----------------------------------------------------#')
+            print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
             choice = input(PROMPT_STR)
         elif choice == '6':  # delete a line of data from the storage file given the keyword
             table_name = input('please input the name of the table to be deleted from:')

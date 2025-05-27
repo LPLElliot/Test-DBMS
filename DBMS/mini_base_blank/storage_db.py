@@ -1,6 +1,7 @@
 # -----------------------------------------------------------------------
 # storage_db.py
 # Author: Jingyu Han  hjymail@163.com
+# modified by: Xinjian Zhang   278254081@qq.com
 # -----------------------------------------------------------------------
 # the module is to store tables in files
 # Each table is stored in a separate file with the suffix ".dat".
@@ -90,7 +91,6 @@ class Storage(object):
                 self.num_of_fields = input(
                     "please input the number of feilds in table " + tablename + ":")
             if int(self.num_of_fields) > 0:
-
                 self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
                 self.block_id = 0
                 self.data_block_num = 0
