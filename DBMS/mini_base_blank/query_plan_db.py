@@ -42,10 +42,23 @@ def extract_sfw_data():
     if syn_tree is None:
         print ('wrong')
     else:
-        #common_db.show(syn_tree)
+        # 递归找到SFW节点
+        def find_sfw(node):
+            if isinstance(node, common_db.Node):
+                if node.value == 'SFW':
+                    return node
+                for child in node.children:
+                    res = find_sfw(child)
+                    if res:
+                        return res
+            return None
+        sfw_node = find_sfw(syn_tree)
+        if sfw_node is None:
+            print('No SFW node found in syntax tree')
+            return [], [], []
         PN = parseNode()
-        destruct(syn_tree,PN)
-        return PN.get_sel_list(),PN.get_from_list(),PN.get_where_list()
+        destruct(sfw_node, PN)
+        return PN.get_sel_list(), PN.get_from_list(), PN.get_where_list()
 #---------------------------------
 # Query  : SFW
 #   SFW  : SELECT SelList FROM FromList WHERE Condition
@@ -121,7 +134,11 @@ def construct_where_node(from_node,where_list):
 #       a tree
 #-----------------------------------
 def construct_select_node(wf_node,sel_list):
+    # 支持 select * 查询
     if wf_node and len(sel_list)>0:
+        if sel_list[0] == '*' or sel_list[0] == 'STAR':
+            # 传递特殊标记，执行时处理
+            return common_db.Node('Proj',[wf_node],['*'])
         return common_db.Node('Proj',[wf_node],sel_list)
 #----------------------------------
 # to execute the query plan and return the result
@@ -218,11 +235,17 @@ def execute_logical_tree():
                                 current_list.append(tmpRecord)
                     if 'Proj' in dict_[idx][0]:
                         SelIndexList = []
-                        for i in range(len(dict_[idx][0][1])):
-                            TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field,dict_[idx][0][1][i])
-                            if not isTrue:
-                                return [], [], False
-                            SelIndexList.append((TableIndex, FieldIndex))
+                        if dict_[idx][0][1][0] == '*':
+                            # select *，投影所有字段
+                            for ti, fields in enumerate(current_field):
+                                for fi in range(len(fields)):
+                                    SelIndexList.append((ti, fi))
+                        else:
+                            for i in range(len(dict_[idx][0][1])):
+                                TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field,dict_[idx][0][1][i])
+                                if not isTrue:
+                                    return [], [], False
+                                SelIndexList.append((TableIndex, FieldIndex))
                         tmp_List = current_list[:]
                         current_list = []
                         # print SelIndexList,current_field

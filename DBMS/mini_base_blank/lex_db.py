@@ -9,7 +9,7 @@
 #-------------------------------
 import ply.lex as lex
 import common_db
-tokens=('SELECT','FROM','WHERE','AND','TCNAME','EQX','COMMA','CONSTANT','SPACE')
+tokens=('SELECT','FROM','WHERE','AND','TCNAME','EQX','COMMA','CONSTANT','SPACE','STAR','SEMI')
 # the following is to defining rules for each token
 def t_SELECT(t):
     r'select'
@@ -38,6 +38,12 @@ def t_CONSTANT(t):
 def t_SPACE(t):
     r'\s+'
     pass
+def t_STAR(t):
+    r'\*'
+    return t
+def t_SEMI(t):
+    r';'
+    return t
 
 #--------------------------
 # to cope with the error

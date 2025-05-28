@@ -218,7 +218,12 @@ class Schema(object):
             self.headObj.offsetOfBody += fieldNum * MAX_FIELD_LEN
             self.headObj.tableNames.append(nameContent)
             self.headObj.tableFields[tableName.strip()]=fieldList
-
+            meta_buf = ctypes.create_string_buffer(12)
+            struct.pack_into('!?ii', meta_buf, 0, self.headObj.isStored, self.headObj.lenOfTableNum, self.headObj.offsetOfBody)
+            self.fileObj.seek(0)
+            self.fileObj.write(meta_buf)
+            self.fileObj.flush()
+            
     # -------------------------------
     # to determine whether the table named table_name exist, depending on the main memory structures
     # input
@@ -248,6 +253,8 @@ class Schema(object):
         #print isStored,tempTableNum,tempOffset
         for idx in range(len(self.headObj.tableNames)):
             tmp_tableName = self.headObj.tableNames[idx][0]
+            if isinstance(tableName, str):
+                tableName = tableName.encode('utf-8')
             if len(tmp_tableName)<10:
                 tmp_tableName = b' ' * (10 - len(tmp_tableName.strip())) + tmp_tableName
             # write (tablename,numberoffields,offsetinbody) to buffer

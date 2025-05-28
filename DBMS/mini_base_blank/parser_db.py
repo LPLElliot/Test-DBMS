@@ -55,12 +55,23 @@ def p_expr_query(t):
 #       the nodes
 #--------------------------------------   
 def p_expr_swf(t):
-    'SFW : SELECT SelList FROM FromList WHERE Cond'
+    '''SFW : SELECT SelList FROM FromList opt_where opt_semi'''
     t[1]=common_db.Node('SELECT',None)
     t[3]=common_db.Node('FROM',None)
-    t[5]=common_db.Node('WHERE',None)
-    t[0]=common_db.Node('SFW',[t[1],t[2],t[3],t[4],t[5],t[6]])
-    return t
+    t[0]=common_db.Node('SFW',[t[1],t[2],t[3],t[4],t[5]])
+
+def p_opt_where(t):
+    '''opt_where : WHERE Cond
+                 | '''
+    if len(t) == 3:
+        t[0] = common_db.Node('WHERE', [t[2]])
+    else:
+        t[0] = None
+
+def p_opt_semi(t):
+    '''opt_semi : SEMI
+                | '''
+    pass
 #------------------------------
 #construct the node for select list
 # input:
@@ -86,6 +97,11 @@ def p_expr_sellist_second(t):
     t[1]=common_db.Node('TCNAME',[t[1]])
     t[0]=common_db.Node('SelList',[t[1]])
     return t
+
+def p_expr_sellist_star(t):
+    'SelList : STAR'
+    t[1]=common_db.Node('STAR',None)
+    t[0]=common_db.Node('SelList',[t[1]])
 #---------------------------
 #construct the node for from expression
 # input:

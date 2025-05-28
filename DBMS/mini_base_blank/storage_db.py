@@ -91,7 +91,7 @@ class Storage(object):
                     "please input the number of feilds in table " + tablename.decode('utf-8') + ":")
             else:
                 self.num_of_fields = input(
-                    "please input the number of feilds in table " + tablename + ":")
+                    "please input the number of feilds in table " + tablename.decode('utf-8') + ":")
             if int(self.num_of_fields) > 0:
                 self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
                 self.block_id = 0
@@ -139,6 +139,11 @@ class Storage(object):
         while Flag <= self.data_block_num:
             self.f_handle.seek(BLOCK_SIZE * Flag)
             self.active_data_buf = self.f_handle.read(BLOCK_SIZE)
+            if len(self.active_data_buf) < 8:
+        # 数据块为空或不完整，跳过
+                print(f"Warning: Data block {Flag} is empty or incomplete, skipping.")
+                Flag += 1
+                continue
             self.block_id, self.Number_of_Records = struct.unpack_from('!ii', self.active_data_buf, 0)
             print('Block_ID=%s,   Contains %s data' % (self.block_id, self.Number_of_Records))
             # There exists record
@@ -440,9 +445,24 @@ class Storage(object):
             self.f_handle.seek(BLOCK_SIZE)
             self.f_handle.write(data_buf)
             self.f_handle.flush()
-        # 更新 block0 的 data_block_num
-        self.f_handle.seek(0)
-        self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
-        struct.pack_into('!ii', self.buf, 0, 0, 1 if self.record_list else 0)
-        self.f_handle.write(self.buf)
-        self.f_handle.flush()
+            # 更新 block0 的 data_block_num
+            self.f_handle.seek(0)
+            self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
+            struct.pack_into('!ii', self.buf, 0, 0, 1)
+            self.f_handle.write(self.buf)
+            self.f_handle.flush()
+        else:
+            # 没有数据时，data_block_num 必须为0，且block0结构完整
+            self.f_handle.seek(0)
+            dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
+            beginIndex = 0
+            struct.pack_into('!iii', dir_buf, beginIndex, 0, 0, len(self.field_name_list))
+            beginIndex += struct.calcsize('!iii')
+            for field in self.field_name_list:
+                field_name = field[0]
+                if isinstance(field_name, str):
+                    field_name = field_name.encode('utf-8')
+                struct.pack_into('!10sii', dir_buf, beginIndex, field_name, field[1], field[2])
+                beginIndex += struct.calcsize('!10sii')
+            self.f_handle.write(dir_buf)
+            self.f_handle.flush()

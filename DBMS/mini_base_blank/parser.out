@@ -1,0 +1,243 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    AND
+    SPACE
+
+Grammar
+
+Rule 0     S' -> Query
+Rule 1     Query -> SFW
+Rule 2     SFW -> SELECT SelList FROM FromList opt_where opt_semi
+Rule 3     opt_where -> WHERE Cond
+Rule 4     opt_where -> <empty>
+Rule 5     opt_semi -> SEMI
+Rule 6     opt_semi -> <empty>
+Rule 7     SelList -> TCNAME COMMA SelList
+Rule 8     SelList -> TCNAME
+Rule 9     SelList -> STAR
+Rule 10    FromList -> TCNAME COMMA FromList
+Rule 11    FromList -> TCNAME
+Rule 12    Cond -> TCNAME EQX CONSTANT
+
+Terminals, with rules where they appear
+
+AND                  : 
+COMMA                : 7 10
+CONSTANT             : 12
+EQX                  : 12
+FROM                 : 2
+SELECT               : 2
+SEMI                 : 5
+SPACE                : 
+STAR                 : 9
+TCNAME               : 7 8 10 11 12
+WHERE                : 3
+error                : 
+
+Nonterminals, with rules where they appear
+
+Cond                 : 3
+FromList             : 2 10
+Query                : 0
+SFW                  : 1
+SelList              : 2 7
+opt_semi             : 2
+opt_where            : 2
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . Query
+    (1) Query -> . SFW
+    (2) SFW -> . SELECT SelList FROM FromList opt_where opt_semi
+
+    SELECT          shift and go to state 3
+
+    Query                          shift and go to state 1
+    SFW                            shift and go to state 2
+
+state 1
+
+    (0) S' -> Query .
+
+
+
+state 2
+
+    (1) Query -> SFW .
+
+    $end            reduce using rule 1 (Query -> SFW .)
+
+
+state 3
+
+    (2) SFW -> SELECT . SelList FROM FromList opt_where opt_semi
+    (7) SelList -> . TCNAME COMMA SelList
+    (8) SelList -> . TCNAME
+    (9) SelList -> . STAR
+
+    TCNAME          shift and go to state 5
+    STAR            shift and go to state 6
+
+    SelList                        shift and go to state 4
+
+state 4
+
+    (2) SFW -> SELECT SelList . FROM FromList opt_where opt_semi
+
+    FROM            shift and go to state 7
+
+
+state 5
+
+    (7) SelList -> TCNAME . COMMA SelList
+    (8) SelList -> TCNAME .
+
+    COMMA           shift and go to state 8
+    FROM            reduce using rule 8 (SelList -> TCNAME .)
+
+
+state 6
+
+    (9) SelList -> STAR .
+
+    FROM            reduce using rule 9 (SelList -> STAR .)
+
+
+state 7
+
+    (2) SFW -> SELECT SelList FROM . FromList opt_where opt_semi
+    (10) FromList -> . TCNAME COMMA FromList
+    (11) FromList -> . TCNAME
+
+    TCNAME          shift and go to state 10
+
+    FromList                       shift and go to state 9
+
+state 8
+
+    (7) SelList -> TCNAME COMMA . SelList
+    (7) SelList -> . TCNAME COMMA SelList
+    (8) SelList -> . TCNAME
+    (9) SelList -> . STAR
+
+    TCNAME          shift and go to state 5
+    STAR            shift and go to state 6
+
+    SelList                        shift and go to state 11
+
+state 9
+
+    (2) SFW -> SELECT SelList FROM FromList . opt_where opt_semi
+    (3) opt_where -> . WHERE Cond
+    (4) opt_where -> .
+
+    WHERE           shift and go to state 13
+    SEMI            reduce using rule 4 (opt_where -> .)
+    $end            reduce using rule 4 (opt_where -> .)
+
+    opt_where                      shift and go to state 12
+
+state 10
+
+    (10) FromList -> TCNAME . COMMA FromList
+    (11) FromList -> TCNAME .
+
+    COMMA           shift and go to state 14
+    WHERE           reduce using rule 11 (FromList -> TCNAME .)
+    SEMI            reduce using rule 11 (FromList -> TCNAME .)
+    $end            reduce using rule 11 (FromList -> TCNAME .)
+
+
+state 11
+
+    (7) SelList -> TCNAME COMMA SelList .
+
+    FROM            reduce using rule 7 (SelList -> TCNAME COMMA SelList .)
+
+
+state 12
+
+    (2) SFW -> SELECT SelList FROM FromList opt_where . opt_semi
+    (5) opt_semi -> . SEMI
+    (6) opt_semi -> .
+
+    SEMI            shift and go to state 16
+    $end            reduce using rule 6 (opt_semi -> .)
+
+    opt_semi                       shift and go to state 15
+
+state 13
+
+    (3) opt_where -> WHERE . Cond
+    (12) Cond -> . TCNAME EQX CONSTANT
+
+    TCNAME          shift and go to state 18
+
+    Cond                           shift and go to state 17
+
+state 14
+
+    (10) FromList -> TCNAME COMMA . FromList
+    (10) FromList -> . TCNAME COMMA FromList
+    (11) FromList -> . TCNAME
+
+    TCNAME          shift and go to state 10
+
+    FromList                       shift and go to state 19
+
+state 15
+
+    (2) SFW -> SELECT SelList FROM FromList opt_where opt_semi .
+
+    $end            reduce using rule 2 (SFW -> SELECT SelList FROM FromList opt_where opt_semi .)
+
+
+state 16
+
+    (5) opt_semi -> SEMI .
+
+    $end            reduce using rule 5 (opt_semi -> SEMI .)
+
+
+state 17
+
+    (3) opt_where -> WHERE Cond .
+
+    SEMI            reduce using rule 3 (opt_where -> WHERE Cond .)
+    $end            reduce using rule 3 (opt_where -> WHERE Cond .)
+
+
+state 18
+
+    (12) Cond -> TCNAME . EQX CONSTANT
+
+    EQX             shift and go to state 20
+
+
+state 19
+
+    (10) FromList -> TCNAME COMMA FromList .
+
+    WHERE           reduce using rule 10 (FromList -> TCNAME COMMA FromList .)
+    SEMI            reduce using rule 10 (FromList -> TCNAME COMMA FromList .)
+    $end            reduce using rule 10 (FromList -> TCNAME COMMA FromList .)
+
+
+state 20
+
+    (12) Cond -> TCNAME EQX . CONSTANT
+
+    CONSTANT        shift and go to state 21
+
+
+state 21
+
+    (12) Cond -> TCNAME EQX CONSTANT .
+
+    SEMI            reduce using rule 12 (Cond -> TCNAME EQX CONSTANT .)
+    $end            reduce using rule 12 (Cond -> TCNAME EQX CONSTANT .)
+
