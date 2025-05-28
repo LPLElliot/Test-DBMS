@@ -23,12 +23,14 @@ class Header(object):
         self.offsetOfBody=off
         self.tableNames=nameList
         self.tableFields=fieldDict
-        print ("isStore is ",self.isStored," tableNum is ",self.lenOfTableNum," offset is ",self.offsetOfBody)      
+        print ("isStore is ",self.isStored," tableNum is ",self.lenOfTableNum," offset is ",self.offsetOfBody)   
+       
     #-----------------------------
     # destructor of the class
     #-------------------------------
     def __del__(self):
         print ('del Header')
+        
     #-----------------------------
     # display the schema of all the tables in the schema file
     #----------------------------------------------------------

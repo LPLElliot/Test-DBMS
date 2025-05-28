@@ -294,3 +294,155 @@ class Storage(object):
             self.f_handle.write(self.buf)
             self.f_handle.flush()
             self.f_handle.close()
+    
+    # ----------------------------------------------
+    # Author: Xinjian Zhang
+    # to delete the first record matching a field value and rewrite the data file
+    # input
+    #       field_name: the field to match
+    #       keyword: the value to match
+    # output
+    #       True or False
+    # ------------------------------------------------
+    def delete_record_by_field(self, field_name, keyword):
+        field_index = None
+        for idx, field in enumerate(self.field_name_list):
+            name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
+            if name == field_name:
+                field_index = idx
+                break
+        if field_index is None:
+            print(f"Field '{field_name}' not found.")
+            return False
+        new_records = []
+        deleted = False
+        for record in self.record_list:
+            value = record[field_index]
+            value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
+            if not deleted and value_str == keyword:
+                deleted = True
+                continue
+            new_records.append(record)
+        if deleted:
+            self.record_list = new_records
+            self._rewrite_data_file()
+            print("Record deleted.")
+            return True
+        else:
+            print("No matching record found.")
+            return False
+
+    # ----------------------------------------------
+    # Author: Xinjian Zhang
+    # to update the first record matching a field value and rewrite the data file
+    # input
+    #       field_name: the field to match
+    #       old_value: the value to be replaced
+    #       new_value: the new value
+    # output
+    #       True or False
+    # ------------------------------------------------
+    def update_record_by_field(self, field_name, old_value, new_value):
+        field_index = None
+        for idx, field in enumerate(self.field_name_list):
+            name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
+            if name == field_name:
+                field_index = idx
+                break
+        if field_index is None:
+            print(f"Field '{field_name}' not found.")
+            return False
+        updated = False
+        for i, record in enumerate(self.record_list):
+            value = record[field_index]
+            value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
+            if value_str == old_value:
+                record = list(record)
+                if isinstance(record[field_index], int):
+                    try:
+                        record[field_index] = int(new_value)
+                    except:
+                        print("Invalid int value.")
+                        return False
+                elif isinstance(record[field_index], bool):
+                    record[field_index] = bool(new_value)
+                else:
+                    record[field_index] = new_value
+                self.record_list[i] = tuple(record)
+                updated = True
+                break
+        if updated:
+            self._rewrite_data_file()
+            print("Record updated.")
+            return True
+        else:
+            print("No matching record found.")
+            return False
+
+    # ----------------------------------------------
+    # Author: Xinjian Zhang
+    # to rewrite the entire data file after delete or update
+    # input
+    #       None (uses self.record_list)
+    # output
+    #       None
+    # ------------------------------------------------
+    def _rewrite_data_file(self):
+        # 重新写入 block0 的字段定义
+        self.f_handle.seek(0)
+        self.f_handle.truncate(0)
+        dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
+        beginIndex = 0
+        struct.pack_into('!iii', dir_buf, beginIndex, 0, 0, len(self.field_name_list))
+        beginIndex += struct.calcsize('!iii')
+        for field in self.field_name_list:
+            field_name = field[0]
+            if isinstance(field_name, str):
+                field_name = field_name.encode('utf-8')
+            struct.pack_into('!10sii', dir_buf, beginIndex, field_name, field[1], field[2])
+            beginIndex += struct.calcsize('!10sii')
+        self.f_handle.seek(0)
+        self.f_handle.write(dir_buf)
+        self.f_handle.flush()
+        # 重新写入数据块
+        if self.record_list:
+            data_block_num = 1
+            num_records = len(self.record_list)
+            record_head_len = struct.calcsize('!ii10s')
+            record_content_len = sum(map(lambda x: x[2], self.field_name_list))
+            record_len = record_head_len + record_content_len
+            MAX_RECORD_NUM = int((BLOCK_SIZE - struct.calcsize('!i') - struct.calcsize('!ii')) / (record_len + struct.calcsize('!i')))
+            # 只写一个数据块，简化实现
+            data_buf = ctypes.create_string_buffer(BLOCK_SIZE)
+            struct.pack_into('!ii', data_buf, 0, data_block_num, num_records)
+            for i, record in enumerate(self.record_list):
+                offset = struct.calcsize('!ii') + i * struct.calcsize('!i')
+                beginIndex = BLOCK_SIZE - (i + 1) * record_len
+                struct.pack_into('!i', data_buf, offset, beginIndex)
+                record_schema_address = struct.calcsize('!iii')
+                update_time = datetime.datetime.now().strftime('%Y-%m-%d')
+                struct.pack_into('!ii10s', data_buf, beginIndex, record_schema_address, record_content_len, update_time.encode('utf-8'))
+                # 拼接字段内容
+                inputstr = b''
+                for idx, field in enumerate(self.field_name_list):
+                    val = record[idx]
+                    if isinstance(val, int):
+                        val = str(val).encode('utf-8')
+                    elif isinstance(val, str):
+                        val = val.encode('utf-8')
+                    elif isinstance(val, bytes):
+                        val = val
+                    else:
+                        val = str(val).encode('utf-8')
+                    val = b' ' * (field[2] - len(val)) + val if len(val) < field[2] else val[:field[2]]
+                    inputstr += val
+                struct.pack_into('!' + str(record_content_len) + 's', data_buf, beginIndex + record_head_len, inputstr)
+            self.f_handle.seek(BLOCK_SIZE)
+            self.f_handle.write(data_buf)
+            self.f_handle.flush()
+        # 更新 block0 的 data_block_num
+        self.f_handle.seek(0)
+        self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
+        struct.pack_into('!ii', self.buf, 0, 0, 1 if self.record_list else 0)
+        self.f_handle.write(self.buf)
+        self.f_handle.flush()

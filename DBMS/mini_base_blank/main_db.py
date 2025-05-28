@@ -128,15 +128,28 @@ def main():
 
         elif choice == '6':  # delete a line of data from the storage file given the keyword
             table_name = input('please input the name of the table to be deleted from:')
-            field_name = input('please input the field name and the corresponding keyword (fieldname:keyword):')
-            # to the students: to be inserted here, delete the line from data files
+            if isinstance(table_name, str):
+                table_name = table_name.encode('utf-8')
+            field_input = input('please input the field name and the corresponding keyword (fieldname:keyword):')
+            if ':' in field_input:
+                field_name, keyword = field_input.split(':', 1)
+                dataObj = storage_db.Storage(table_name)
+                dataObj.delete_record_by_field(field_name.strip(), keyword.strip())
+                del dataObj
+            else:
+                print("Input format error. Please use fieldname:keyword")
             choice = input(PROMPT_STR)
 
         elif choice == '7':  # update a line of data given the keyword
             table_name = input('please input the name of the table:')
+            if isinstance(table_name, str):
+                table_name = table_name.encode('utf-8')
             field_name = input('please input the field name:')
-            field_name_value = input('please input the old value of the field:')
-            # to the students: to be inserted here, update the line according to the user input
+            old_value = input('please input the old value of the field:')
+            new_value = input('please input the new value of the field:')
+            dataObj = storage_db.Storage(table_name)
+            dataObj.update_record_by_field(field_name.strip(), old_value.strip(), new_value.strip())
+            del dataObj
             choice = input(PROMPT_STR)
 
         elif choice == '.':

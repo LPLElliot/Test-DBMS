@@ -54,18 +54,15 @@ def fillTableName(tableName): # it should be 10 bytes
         return tableName
 
 class Schema(object):
-    '''
-    Schema class
-    '''
     fileName = 'DBMS/mini_base_blank/all.sch'  # the schema file name
     count = 0  # there should be only one object in the program
     @staticmethod
+
     def how_many():  # give the count of instances
         return Schema.count
 
     def viewTableNames(self):  # to list all the table names in the all.sch
         print ('viewtablenames begin to execute')
-        # to be inserted here
         for i in self.headObj.tableNames:
             print ('Table name is ', i[0])
         print ('execute Done!')
