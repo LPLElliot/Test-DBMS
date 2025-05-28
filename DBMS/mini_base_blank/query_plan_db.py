@@ -39,8 +39,10 @@ class parseNode:
 #--------------------------------
 def extract_sfw_data():
     print('extract_sfw_data begins to execute')
+    syn_tree = common_db.global_syn_tree  
     if syn_tree is None:
-        print ('wrong')
+        print('wrong')
+        return [], [], []
     else:
         # 递归找到SFW节点
         def find_sfw(node):
@@ -59,6 +61,7 @@ def extract_sfw_data():
         PN = parseNode()
         destruct(sfw_node, PN)
         return PN.get_sel_list(), PN.get_from_list(), PN.get_where_list()
+    
 #---------------------------------
 # Query  : SFW
 #   SFW  : SELECT SelList FROM FromList WHERE Condition
@@ -87,15 +90,20 @@ def destruct(nodeobj,PN):
             else:
                 for i in range(len(nodeobj.children)):
                     destruct(nodeobj.children[i],PN)
-def show(nodeobj,tmpList):
-    if isinstance(nodeobj,common_db.Node):
+def show(nodeobj, tmpList):
+    if isinstance(nodeobj, common_db.Node):
         if not nodeobj.children:
-            tmpList.append(nodeobj.value)
+            # 只收集叶子节点的值
+            if isinstance(nodeobj.value, bytes):
+                tmpList.append(nodeobj.value.decode('utf-8').strip())
+            else:
+                tmpList.append(str(nodeobj.value).strip())
         else:
             for i in range(len(nodeobj.children)):
-                show(nodeobj.children[i],tmpList)
-    if isinstance(nodeobj,str):
-        tmpList.append(nodeobj)
+                show(nodeobj.children[i], tmpList)
+    elif isinstance(nodeobj, str):
+        tmpList.append(nodeobj.strip())
+
 #---------------------------
 #input:
 #       from_list
@@ -114,6 +122,7 @@ def construct_from_node(from_list):
         elif len(from_list)>2:
             right_node=common_db.Node(from_list[len(from_list)-1],None)
             return common_db.Node('X',[construct_from_node(from_list[0:len(from_list)-1]),right_node])
+        
 #---------------------------
 #input:
 #       where_list
@@ -126,6 +135,7 @@ def construct_where_node(from_node,where_list):
        return common_db.Node('Filter',[from_node],where_list)
     elif from_node and len(where_list)==0:# there is no where clause
         return from_node
+    
 #---------------------------
 #input:
 #       sel_list
@@ -140,6 +150,7 @@ def construct_select_node(wf_node,sel_list):
             # 传递特殊标记，执行时处理
             return common_db.Node('Proj',[wf_node],['*'])
         return common_db.Node('Proj',[wf_node],sel_list)
+    
 #----------------------------------
 # to execute the query plan and return the result
 # input
@@ -196,7 +207,6 @@ def execute_logical_tree():
                     else:
                         a_1 = storage_db.Storage(dict_[idx][0])
                         current_list = a_1.getRecord()
-
                         tableName_Order = [dict_[idx][0]]
                         current_field = [a_1.getfilenamelist()]
                         #print current_list
@@ -263,25 +273,41 @@ def execute_logical_tree():
                                 current_list.append(tmp)
                         outPutField = []
                         for xi in SelIndexList:
+                            field_name = current_field[xi[0]][xi[1]][0]
+                            if isinstance(field_name, bytes):
+                                field_name = field_name.decode('utf-8')
                             outPutField.append(
-                                tableName_Order[xi[0]].strip() + '.' + current_field[xi[0]][xi[1]][0].strip())
+                                tableName_Order[xi[0]].strip() + '.' + field_name.strip()
+                            )
                         return outPutField, current_list, True
                 idx -= 1
         outPutField, current_list, isRight = excute_tree()
         if isRight:
-            print (outPutField)
+            # 输出表头
+            print('-' * (len(outPutField) * 12))
+            print(' | '.join(outPutField))
+            print('-' * (len(outPutField) * 12))
+            # 输出每条记录
             for record in current_list:
-                print (record)
-        else:
-            print ('WRONG SQL INPUT!')
+                # 将bytes类型转为str，并去除多余空格
+                row = []
+                for item in record:
+                    if isinstance(item, bytes):
+                        row.append(item.decode('utf-8').strip())
+                    else:
+                        row.append(str(item).strip())
+                print(' | '.join(row))
+                print('-' * (len(outPutField) * 12))
     else:
         print ('there is no query plan tree for the execution')
+        
 # --------------------------------
 # to construct a logical query plan tree
 # output:
 #       global_logical_tree
 # ---------------------------------
 def construct_logical_tree():
+    syn_tree = common_db.global_syn_tree
     if syn_tree:
         sel_list,from_list,where_list=extract_sfw_data()
         sel_list=[i for i in sel_list if i!=',']

@@ -116,13 +116,9 @@ def main():
             sql_str = input('please enter the select from where clause:')
             lex_db.set_lex_handle()  # to set the global_lexer in common_db.py
             parser_db.set_handle()  # to set the global_parser in common_db.py
-            try:
-                common_db.global_syn_tree = common_db.global_parser.parse(sql_str.strip(),lexer=common_db.global_lexer)  # construct the global_syn_tree
-                #reload(query_plan_db)
-                query_plan_db.construct_logical_tree()
-                query_plan_db.execute_logical_tree()
-            except:
-                print('WRONG SQL INPUT!')
+            common_db.global_syn_tree = common_db.global_parser.parse(sql_str.strip(),lexer=common_db.global_lexer)  # construct the global_syn_tree
+            query_plan_db.construct_logical_tree()
+            query_plan_db.execute_logical_tree()
             print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
             choice = input(PROMPT_STR)
 

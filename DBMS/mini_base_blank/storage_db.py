@@ -69,6 +69,8 @@ class Storage(object):
         tablename.strip()
         self.record_list = []
         self.record_Position = []
+        if isinstance(tablename,str):
+            tablename=tablename.encode('utf-8')
         if not os.path.exists(tablename + '.dat'.encode('utf-8')):  # the file corresponding to the table does not exist
             print(('table file ' + tablename.decode('utf-8') + '.dat does not exists'))
             self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'wb+')
@@ -466,3 +468,7 @@ class Storage(object):
                 beginIndex += struct.calcsize('!10sii')
             self.f_handle.write(dir_buf)
             self.f_handle.flush()
+
+    def getfilenamelist(self):
+        # 返回字段信息列表，每个元素是 (字段名, 字段类型, 字段长度)
+        return self.field_name_list
