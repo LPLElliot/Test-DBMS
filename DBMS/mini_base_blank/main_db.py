@@ -12,8 +12,8 @@ import lex_db  # for lex, where data is stored in binary format
 import parser_db  # for yacc, where ddata is tored in binary format
 import common_db  # the global variables, functions, constants in the program
 import query_plan_db  # construct the query plan and execute it
-PROMPT_STR = '''
 
+PROMPT_STR = '''
  +-----------------------------------------+
  |               MENU OPTIONS              |
  +-----------------------------------------+
@@ -26,7 +26,8 @@ PROMPT_STR = '''
  | 7: Update a row by field keyword        |
  | .: Quit                                 |
  +-----------------------------------------+
- Input your choice: '''  # the prompt string for user input(to be modified later)
+ Input your choice: '''  # the prompt string for user input(美化了选择窗口)
+
 # --------------------------
 # the main loop, which needs further implementation
 # ---------------------------
@@ -34,7 +35,7 @@ def main():
     # main loops for the whole program
     print('main function begins to execute')
     # The instance data of table is stored in binary format, which corresponds to chapter 2-8 of textbook
-    schemaObj = schema_db.Schema(debug=True)  # to create a schema object, which contains the schema of all tables(to be modified later)
+    schemaObj = schema_db.Schema(debug=True)  # to create a schema object, which contains the schema of all tables(增加了调试选项)
     dataObj = None
     choice = input(PROMPT_STR)
     while True:
@@ -42,7 +43,7 @@ def main():
             tableName = input('please enter your new table name:')
             if isinstance(tableName, str):
                 tableName = tableName.encode('utf-8')
-            #  tableName not in all.sch
+            # tableName not in all.sch
             insertFieldList = []
             if tableName.strip() not in schemaObj.get_table_name_list():
                 # Create a new table
@@ -61,9 +62,9 @@ def main():
                     print('OK!')
                 else:
                     print('Wrong input!')
-
                 del dataObj
             choice = input(PROMPT_STR)
+
         elif choice == '2':  # delete a table from schema file and data file
             table_name = input('please input the name of the table to be deleted:')
             if isinstance(table_name,str):
@@ -78,6 +79,7 @@ def main():
             else:
                 print(f"there is no table {table_name.decode('utf-8')} in the schema file")
             choice = input(PROMPT_STR)
+
         elif choice == '3':  # view the table structure and all the data
             print("Current tables:")
             for t in schemaObj.headObj.tableNames:
@@ -96,6 +98,7 @@ def main():
                 else:
                     print('table name is None')
             choice = input(PROMPT_STR)
+
         elif choice == '4':  # delete all the table structures and their data
             table_name_list = list(schemaObj.get_table_name_list())
             for i in range(len(table_name_list)):
@@ -107,7 +110,8 @@ def main():
                     del stObj
             schemaObj.deleteAll()  # delete schema from schema file
             choice = input(PROMPT_STR)
-        elif choice == '5':  # process SELECT FROM WHERE clause
+
+        elif choice == '5':  # process SELECT FROM WHERE clause(美化了窗口)
             print('#' + '-'*30 + ' SQL QUERY BEGIN ' + '-'*30 + '#')
             sql_str = input('please enter the select from where clause:')
             lex_db.set_lex_handle()  # to set the global_lexer in common_db.py
@@ -121,21 +125,25 @@ def main():
                 print('WRONG SQL INPUT!')
             print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
             choice = input(PROMPT_STR)
+
         elif choice == '6':  # delete a line of data from the storage file given the keyword
             table_name = input('please input the name of the table to be deleted from:')
             field_name = input('please input the field name and the corresponding keyword (fieldname:keyword):')
             # to the students: to be inserted here, delete the line from data files
             choice = input(PROMPT_STR)
+
         elif choice == '7':  # update a line of data given the keyword
             table_name = input('please input the name of the table:')
             field_name = input('please input the field name:')
             field_name_value = input('please input the old value of the field:')
             # to the students: to be inserted here, update the line according to the user input
             choice = input(PROMPT_STR)
+
         elif choice == '.':
             print('main loop finishies')
             del schemaObj
             break
+        
     print('main loop finish!')
 
 if __name__ == '__main__':

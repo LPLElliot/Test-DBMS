@@ -62,6 +62,7 @@ class Storage(object):
     # constructor of the class
     # input:
     #       tablename
+    # 修改了输出顺序,美化
     # -------------------------------------
     def __init__(self, tablename):
         # print "__init__ of ",Storage.__name__,"begins to execute"
@@ -248,8 +249,6 @@ class Storage(object):
 
     # ------------------------------
     # show the data structure and its data
-    # input:
-    #       t
     # -------------------------------------
     def show_table_data(self):
         print('|'.join(map(lambda x: x[0].decode('utf-8').strip(), self.field_name_list)))  # show the structure

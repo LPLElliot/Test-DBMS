@@ -67,10 +67,12 @@ class Schema(object):
         print ('viewtablenames begin to execute')
         # to be inserted here
         for i in self.headObj.tableNames:
-            print ('Table name is     ', i[0])
+            print ('Table name is ', i[0])
         print ('execute Done!')
+
     # ------------------------------------------------
     # constructor of the class
+    # 增加了调试语句,优化了输出
     # ------------------------------------------------
     def __init__(self,debug=False):
         self.debug = debug
@@ -165,7 +167,7 @@ class Schema(object):
     # delete all the contents in the schema file
     # ----------------------------------------
     def deleteAll(self):
-        self.headObj.tableFields=[]
+        self.headObj.tableFields={}
         self.headObj.tableNames=[]
         self.fileObj.seek(0)
         self.fileObj.truncate(0)
@@ -250,13 +252,14 @@ class Schema(object):
         for idx in range(len(self.headObj.tableNames)):
             tmp_tableName = self.headObj.tableNames[idx][0]
             if len(tmp_tableName)<10:
-                tmp_tableName = ' ' * (10 - len(tmp_tableName.strip())) + tmp_tableName
+                tmp_tableName = b' ' * (10 - len(tmp_tableName.strip())) + tmp_tableName
             # write (tablename,numberoffields,offsetinbody) to buffer
             struct.pack_into('!10sii', buf, META_HEAD_SIZE + idx * TABLE_NAME_ENTRY_LEN, tmp_tableName,
                              self.headObj.tableNames[idx][1],self.headObj.tableNames[idx][2])
             # write the field information of each table into the buffer
+            fields = self.headObj.tableFields[tmp_tableName.strip()]
             for idj in range(self.headObj.tableNames[idx][1]):
-                (tempFieldName,tempFieldType,tempFieldLength)=self.headObj.tableFields[idx][idj]                
+                (tempFieldName,tempFieldType,tempFieldLength)=fields[idj]             
                 struct.pack_into('!10sii',buf,self.headObj.tableNames[idx][2]+idj*MAX_FIELD_LEN,
                                 tempFieldName,tempFieldType,tempFieldLength)
         self.fileObj.seek(0)
@@ -276,6 +279,7 @@ class Schema(object):
         if isinstance(table_name, str):
             table_name = table_name.encode('utf-8')
         table_name = table_name.strip()
+        # 查找要删除的表索引
         for i in range(len(self.headObj.tableNames)):
             tname = self.headObj.tableNames[i][0]
             if isinstance(tname, bytes):
@@ -286,9 +290,11 @@ class Schema(object):
                 tmpIndex = i
                 break
         if tmpIndex >= 0:
+            # 删除 tableNames
             del self.headObj.tableNames[tmpIndex]
             del self.headObj.tableFields[table_name]
             self.headObj.lenOfTableNum -= 1
+            # 更新头部信息
             if len(self.headObj.tableNames) > 0:
                 name_list = [x[0] for x in self.headObj.tableNames]
                 field_num_per_table = [x[1] for x in self.headObj.tableNames]
@@ -299,10 +305,11 @@ class Schema(object):
                 self.headObj.tableNames = list(zip(name_list, field_num_per_table, table_offset))
                 self.headObj.offsetOfBody = self.headObj.tableNames[-1][2] + self.headObj.tableNames[-1][1] * MAX_FIELD_LEN
                 self.WriteBuff()
+            # 更新文件
             else:
-                print(False)
                 self.headObj.offsetOfBody = BODY_BEGIN_INDEX
                 self.headObj.isStored = False
+                self.WriteBuff()
             return True
         else:
             print('Cannot find the table!')
