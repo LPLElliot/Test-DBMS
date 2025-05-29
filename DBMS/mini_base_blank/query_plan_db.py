@@ -13,6 +13,7 @@ import itertools
 # to import the syntax tree, which is defined in parser_db.py
 #-------------------------------------------
 from common_db import global_syn_tree as syn_tree
+
 class parseNode:
     def __init__(self):
         self.sel_list=[]
@@ -30,6 +31,7 @@ class parseNode:
         self.from_list = from_list
     def update_where_list(self,where_list):
         self.where_list = where_list
+        
 #--------------------------------
 # to extract data from gloal variable syn_tree
 # output:
@@ -161,7 +163,7 @@ def execute_logical_tree():
         def excute_tree():
             idx = 0
             dict_ = {}
-            def show(node_obj, idx, dict_):
+            def show_tree(node_obj, idx, dict_):
                 if isinstance(node_obj, common_db.Node):  # it is a Node object
                     dict_.setdefault(idx, [])
                     dict_[idx].append(node_obj.value)
@@ -169,22 +171,25 @@ def execute_logical_tree():
                         dict_[idx][-1] = tuple((dict_[idx][-1], node_obj.var))
                     if node_obj.children:
                         for i in range(len(node_obj.children)):
-                            show(node_obj.children[i], idx + 1, dict_)
-            show(common_db.global_logical_tree, idx, dict_)
+                            show_tree(node_obj.children[i], idx + 1, dict_)
+            show_tree(common_db.global_logical_tree, idx, dict_)
             idx = sorted(dict_.keys(), reverse=True)[0]
             def GetFilterParam(tableName_Order, current_field, param):
-                # print tableName_Order,current_field
+                if isinstance(param, bytes):
+                    param = param.decode('utf-8')
                 if '.' in param:
                     tableName = param.split('.')[0]
                     FieldName = param.split('.')[1]
                     if tableName in tableName_Order:
                         TableIndex = tableName_Order.index(tableName)
+                    else:
+                        return 0, 0, 0, False
                 elif len(tableName_Order) == 1:
                     TableIndex = 0
                     FieldName = param
                 else:
                     return 0, 0, 0, False
-                tmp = list(map(lambda x: x[0].strip(), current_field[TableIndex]))
+                tmp = [x[0].decode('utf-8').strip() if isinstance(x[0], bytes) else str(x[0]).strip() for x in current_field[TableIndex]]
                 if FieldName in tmp:
                     FieldIndex = tmp.index(FieldName)
                     FieldType = current_field[TableIndex][FieldIndex][1]
@@ -193,26 +198,36 @@ def execute_logical_tree():
                     return 0, 0, 0, False
             current_field = []
             current_list =[]
-            #print dict_
             while (idx >= 0):
                 if idx == sorted(dict_.keys(), reverse=True)[0]:
                     if len(dict_[idx]) > 1:
-                        a_1 = storage_db.Storage(dict_[idx][0])
-                        a_2 = storage_db.Storage(dict_[idx][1])
+                        t1 = dict_[idx][0]
+                        t2 = dict_[idx][1]
+                        if isinstance(t1, bytes):
+                            t1 = t1.decode('utf-8')
+                        if isinstance(t2, bytes):
+                            t2 = t2.decode('utf-8')
+                        a_1 = storage_db.Storage(t1)
+                        a_2 = storage_db.Storage(t2)
                         current_list = []
-                        tableName_Order = [dict_[idx][0], dict_[idx][1]]
+                        tableName_Order = [t1, t2]
                         current_field = [a_1.getfilenamelist(), a_2.getfilenamelist()]
                         for x in itertools.product(a_1.getRecord(), a_2.getRecord()):
                             current_list.append(list(x))
                     else:
-                        a_1 = storage_db.Storage(dict_[idx][0])
+                        t1 = dict_[idx][0]
+                        if isinstance(t1, bytes):
+                            t1 = t1.decode('utf-8')
+                        a_1 = storage_db.Storage(t1)
                         current_list = a_1.getRecord()
-                        tableName_Order = [dict_[idx][0]]
+                        tableName_Order = [t1]
                         current_field = [a_1.getfilenamelist()]
-                        #print current_list
                 elif 'X' in dict_[idx] and len(dict_[idx]) > 1:
-                    a_2 = storage_db.Storage(dict_[idx][1])
-                    tableName_Order.append(dict_[idx][1])
+                    t2 = dict_[idx][1]
+                    if isinstance(t2, bytes):
+                        t2 = t2.decode('utf-8')
+                    a_2 = storage_db.Storage(t2)
+                    tableName_Order.append(t2)
                     current_field.append(a_2.getfilenamelist())
                     tmp_List = current_list[:]
                     current_list = []
@@ -231,7 +246,6 @@ def execute_logical_tree():
                                 FilterParam = bool(FilterChoice[2].strip())
                             else:
                                 FilterParam = FilterChoice[2].strip()
-                            #print FilterParam
                         tmp_List = current_list[:]
                         current_list = []
                         for tmpRecord in tmp_List:
@@ -240,37 +254,40 @@ def execute_logical_tree():
                             else:
                                 ans = tmpRecord[TableIndex][FieldIndex]
                             if FieldType == 0 or FieldType == 1:
-                                ans = ans.strip()
+                                ans = ans.strip() if isinstance(ans, bytes) else str(ans).strip()
+                            if isinstance(FilterParam, bytes):
+                                FilterParam = FilterParam.decode('utf-8').strip()
+                            else:
+                                FilterParam = str(FilterParam).strip()
+                            if isinstance(ans, bytes):
+                                ans = ans.decode('utf-8').strip()
+                            else:
+                                ans = str(ans).strip()
                             if FilterParam == ans:
                                 current_list.append(tmpRecord)
                     if 'Proj' in dict_[idx][0]:
                         SelIndexList = []
                         if dict_[idx][0][1][0] == '*':
-                            # select *，投影所有字段
                             for ti, fields in enumerate(current_field):
                                 for fi in range(len(fields)):
                                     SelIndexList.append((ti, fi))
                         else:
                             for i in range(len(dict_[idx][0][1])):
-                                TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field,dict_[idx][0][1][i])
+                                param = dict_[idx][0][1][i]
+                                TableIndex, FieldIndex, FieldType, isTrue = GetFilterParam(tableName_Order, current_field, param)
                                 if not isTrue:
                                     return [], [], False
                                 SelIndexList.append((TableIndex, FieldIndex))
                         tmp_List = current_list[:]
                         current_list = []
-                        # print SelIndexList,current_field
                         for tmpRecord in tmp_List:
-                            # print tmpRecord
-                            if len(current_field) == 1:
-                                tmp = []
-                                for x in list(map(lambda x: x[1], SelIndexList)):
-                                    tmp.append(tmpRecord[x])
-                                current_list.append(tmp)
-                            else:
-                                tmp = []
-                                for x in SelIndexList:
+                            tmp = []
+                            for x in SelIndexList:
+                                if len(current_field) == 1:
+                                    tmp.append(tmpRecord[x[1]])
+                                else:
                                     tmp.append(tmpRecord[x[0]][x[1]])
-                                current_list.append(tmp)
+                            current_list.append(tmp)
                         outPutField = []
                         for xi in SelIndexList:
                             field_name = current_field[xi[0]][xi[1]][0]
@@ -289,7 +306,6 @@ def execute_logical_tree():
             print('-' * (len(outPutField) * 12))
             # 输出每条记录
             for record in current_list:
-                # 将bytes类型转为str，并去除多余空格
                 row = []
                 for item in record:
                     if isinstance(item, bytes):
@@ -298,6 +314,8 @@ def execute_logical_tree():
                         row.append(str(item).strip())
                 print(' | '.join(row))
                 print('-' * (len(outPutField) * 12))
+        else:
+            print('WRONG SQL INPUT!')
     else:
         print ('there is no query plan tree for the execution')
         
@@ -313,11 +331,8 @@ def construct_logical_tree():
         sel_list=[i for i in sel_list if i!=',']
         from_list=[i for i in from_list if i!=',']
         where_list=tuple(where_list)
-        #print sel_list,from_list,where_list
         from_node = construct_from_node(from_list)
         where_node = construct_where_node(from_node, where_list)
         common_db.global_logical_tree = construct_select_node(where_node, sel_list)
-        #if common_db.global_logical_tree:
-        #    common_db.show(common_db.global_logical_tree)
     else:
         print ('there is no data in the syntax tree in the construct_logical_tree')

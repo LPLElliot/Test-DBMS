@@ -135,11 +135,16 @@ def p_expr_fromlist_second(t):
 #       the nodes
 #--------------------------------------   
 def p_expr_condition(t):
-    'Cond : TCNAME EQX CONSTANT'
-    t[1]=common_db.Node('TCNAME',[t[1]])
-    t[2]=common_db.Node('=',None)
-    t[3]=common_db.Node('CONSTANT',[t[3]])
-    t[0]=common_db.Node('Cond',[t[1],t[2],t[3]])
+    '''Cond : TCNAME EQX CONSTANT
+            | TCNAME EQX TCNAME'''
+    t[1] = common_db.Node('TCNAME', [t[1]])
+    t[2] = common_db.Node('=', None)
+    # 判断右侧是 CONSTANT 还是 TCNAME
+    if t.slice[3].type == 'CONSTANT':
+        t[3] = common_db.Node('CONSTANT', [t[3]])
+    else:
+        t[3] = common_db.Node('TCNAME', [t[3]])
+    t[0] = common_db.Node('Cond', [t[1], t[2], t[3]])
     return t 
 #------------------------------
 # for error

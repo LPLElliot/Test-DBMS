@@ -148,10 +148,14 @@ def main():
             del dataObj
             choice = input(PROMPT_STR)
 
-        elif choice == '.':
+        elif choice == '.':  # quit the program
             print('main loop finishies')
             del schemaObj
             break
+
+        else:
+            print('Wrong input, please try again!')
+            choice = input(PROMPT_STR)
         
     print('main loop finish!')
 
