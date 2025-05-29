@@ -10,6 +10,7 @@
 import ply.lex as lex
 import common_db
 tokens=('SELECT','FROM','WHERE','AND','TCNAME','EQX','COMMA','CONSTANT','SPACE','STAR','SEMI')
+
 # the following is to defining rules for each token
 def t_SELECT(t):
     r'select'
@@ -50,7 +51,6 @@ def t_SEMI(t):
 #------------------------
 def t_error(t):
     try:
-    
         print ('wrong')
     except lex.LexError:
         print ('wrong')

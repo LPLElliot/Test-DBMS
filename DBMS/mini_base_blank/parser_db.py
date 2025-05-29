@@ -139,7 +139,6 @@ def p_expr_condition(t):
             | TCNAME EQX TCNAME'''
     t[1] = common_db.Node('TCNAME', [t[1]])
     t[2] = common_db.Node('=', None)
-    # 判断右侧是 CONSTANT 还是 TCNAME
     if t.slice[3].type == 'CONSTANT':
         t[3] = common_db.Node('CONSTANT', [t[3]])
     else:

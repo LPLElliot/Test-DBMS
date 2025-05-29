@@ -46,7 +46,6 @@ def extract_sfw_data():
         print('wrong')
         return [], [], []
     else:
-        # 递归找到SFW节点
         def find_sfw(node):
             if isinstance(node, common_db.Node):
                 if node.value == 'SFW':
@@ -95,7 +94,6 @@ def destruct(nodeobj,PN):
 def show(nodeobj, tmpList):
     if isinstance(nodeobj, common_db.Node):
         if not nodeobj.children:
-            # 只收集叶子节点的值
             if isinstance(nodeobj.value, bytes):
                 tmpList.append(nodeobj.value.decode('utf-8').strip())
             else:
@@ -146,10 +144,8 @@ def construct_where_node(from_node,where_list):
 #       a tree
 #-----------------------------------
 def construct_select_node(wf_node,sel_list):
-    # 支持 select * 查询
     if wf_node and len(sel_list)>0:
         if sel_list[0] == '*' or sel_list[0] == 'STAR':
-            # 传递特殊标记，执行时处理
             return common_db.Node('Proj',[wf_node],['*'])
         return common_db.Node('Proj',[wf_node],sel_list)
     

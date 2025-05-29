@@ -35,7 +35,7 @@ def main():
     # main loops for the whole program
     print('main function begins to execute')
     # The instance data of table is stored in binary format, which corresponds to chapter 2-8 of textbook
-    schemaObj = schema_db.Schema(debug=True)  # to create a schema object, which contains the schema of all tables(增加了调试选项)
+    schemaObj = schema_db.Schema(debug=False)  # to create a schema object, which contains the schema of all tables(增加了调试选项)
     dataObj = None
     choice = input(PROMPT_STR)
     while True:
@@ -67,17 +67,13 @@ def main():
 
         elif choice == '2':  # delete a table from schema file and data file
             table_name = input('please input the name of the table to be deleted:')
-            if isinstance(table_name,str):
-                table_name=table_name.encode('utf-8')
-            if schemaObj.find_table(table_name.strip()):
-                if schemaObj.delete_table_schema(table_name):  # delete the schema from the schema file
-                    dataObj = storage_db.Storage(table_name)  # create an object for the data of table
-                    dataObj.delete_table_data(table_name.strip())  # delete table content from the table file
-                    del dataObj
-                else:
-                    print('the deletion from schema file fail')
-            else:
-                print(f"there is no table {table_name.decode('utf-8')} in the schema file")
+            if isinstance(table_name, str):
+                table_name = table_name.encode('utf-8')
+            if not schemaObj.find_table(table_name.strip()):
+                print(f"Table {table_name.decode('utf-8') if isinstance(table_name, bytes) else table_name.strip()} does not exist!")
+                choice = input(PROMPT_STR)
+                continue
+            # ...后续删除逻辑...
             choice = input(PROMPT_STR)
 
         elif choice == '3':  # view the table structure and all the data
@@ -88,15 +84,15 @@ def main():
                 else:
                     print(str(t[0]).strip())
             table_name = input('please input the name of the table to be displayed:')
-            if isinstance(table_name,str):
-                table_name=table_name.encode('utf-8')
-            if table_name.strip():
-                if schemaObj.find_table(table_name.strip()):
-                    dataObj = storage_db.Storage(table_name)  # create an object for the data of table
-                    dataObj.show_table_data()  # view all the data of the table
-                    del dataObj
-                else:
-                    print('table name is None')
+            if isinstance(table_name, str):
+                table_name = table_name.encode('utf-8')
+            if not schemaObj.find_table(table_name.strip()):
+                print(f"Table {table_name.decode('utf-8') if isinstance(table_name, bytes) else table_name.strip()} does not exist!")
+                choice = input(PROMPT_STR)
+                continue
+            dataObj = storage_db.Storage(table_name)
+            dataObj.show_table_data()
+            del dataObj
             choice = input(PROMPT_STR)
 
         elif choice == '4':  # delete all the table structures and their data
@@ -111,21 +107,34 @@ def main():
             schemaObj.deleteAll()  # delete schema from schema file
             choice = input(PROMPT_STR)
 
-        elif choice == '5':  # process SELECT FROM WHERE clause(美化了窗口)
-            print('#' + '-'*30 + ' SQL QUERY BEGIN ' + '-'*30 + '#')
+        elif choice == '5':  # process SELECT FROM WHERE clause
             sql_str = input('please enter the select from where clause:')
-            lex_db.set_lex_handle()  # to set the global_lexer in common_db.py
-            parser_db.set_handle()  # to set the global_parser in common_db.py
-            common_db.global_syn_tree = common_db.global_parser.parse(sql_str.strip(),lexer=common_db.global_lexer)  # construct the global_syn_tree
-            query_plan_db.construct_logical_tree()
-            query_plan_db.execute_logical_tree()
-            print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
+            # 解析SQL，提取from_list
+            lex_db.set_lex_handle()
+            parser_db.set_handle()
+            common_db.global_syn_tree = common_db.global_parser.parse(sql_str.strip(),lexer=common_db.global_lexer)
+            from_list = query_plan_db.extract_sfw_data()[1]
+            # 检查所有表是否存在
+            all_exist = True
+            for table_name in from_list:
+                if isinstance(table_name, str):
+                    table_name = table_name.encode('utf-8')
+                if not schemaObj.find_table(table_name.strip()):
+                    print(f"Table {table_name.decode('utf-8') if isinstance(table_name, bytes) else table_name.strip()} does not exist!")
+                    all_exist = False
+            if not all_exist:
+                choice = input(PROMPT_STR)
+                continue
             choice = input(PROMPT_STR)
 
         elif choice == '6':  # delete a line of data from the storage file given the keyword
             table_name = input('please input the name of the table to be deleted from:')
             if isinstance(table_name, str):
                 table_name = table_name.encode('utf-8')
+            if not schemaObj.find_table(table_name.strip()):
+                print(f"Table {table_name.decode('utf-8') if isinstance(table_name, bytes) else table_name.strip()} does not exist!")
+                choice = input(PROMPT_STR)
+                continue
             field_input = input('please input the field name and the corresponding keyword (fieldname:keyword):')
             if ':' in field_input:
                 field_name, keyword = field_input.split(':', 1)
@@ -140,6 +149,10 @@ def main():
             table_name = input('please input the name of the table:')
             if isinstance(table_name, str):
                 table_name = table_name.encode('utf-8')
+            if not schemaObj.find_table(table_name.strip()):
+                print(f"Table {table_name.decode('utf-8') if isinstance(table_name, bytes) else table_name.strip()} does not exist!")
+                choice = input(PROMPT_STR)
+                continue
             field_name = input('please input the field name:')
             old_value = input('please input the old value of the field:')
             new_value = input('please input the new value of the field:')
