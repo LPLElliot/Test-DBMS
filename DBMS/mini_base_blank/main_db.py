@@ -23,7 +23,7 @@ PROMPT_STR = '''
  | 4: Delete all tables and data           |
  | 5: SELECT FROM WHERE clause             |
  | 6: Delete a row by field keyword        |
- | 7: Update a row by field keyword   bb     |
+ | 7: Update a row by field keyword        |
  | .: Quit                                 |
  +-----------------------------------------+
  Input your choice: '''  # the prompt string for user input(美化了选择窗口)
