@@ -181,13 +181,11 @@ class Schema(object):
     #       fieldList: the field information list and each element is a tuple(fieldname,fieldtype,fieldlength)
     # -------------------------------
     def appendTable(self, tableName, fieldList):  # it modify the tableNameHead and body of all.sch
-        print ("appendTable begins to execute")
         tableName.strip()
         if len(tableName) == 0 or len(tableName) > 10 or len(fieldList)==0:
             print ('tablename is invalid or field list is invalid')
         else:
             fieldNum = len(fieldList)
-            print ("the following is to write the fields to body in all.sch")
             fieldBuff = ctypes.create_string_buffer(MAX_FIELD_LEN * len(fieldList))
             beginIndex = 0
             for i in range(len(fieldList)):
@@ -202,8 +200,6 @@ class Schema(object):
             self.fileObj.seek(writePos)
             self.fileObj.write(fieldBuff)
             self.fileObj.flush()
-            # self.headObj.offsetOfBody=self.headObj.offsetBody+fieldNum*MAX_FIELD_LEN
-            print ("the following is to write table name entry to tableNameHead in all.sch")
             filledTableName = fillTableName(tableName)
             if isinstance(filledTableName, str):
                 filledTableName = filledTableName.encode('utf-8')
@@ -212,7 +208,6 @@ class Schema(object):
             nameContent = (tableName.strip(), fieldNum, self.headObj.offsetOfBody)
             self.fileObj.write(nameBuf)
             self.fileObj.flush()
-            print ("to modify the header structure in main memory")
             self.headObj.isStored = True
             self.headObj.lenOfTableNum += 1
             self.headObj.offsetOfBody += fieldNum * MAX_FIELD_LEN
@@ -223,7 +218,9 @@ class Schema(object):
             self.fileObj.seek(0)
             self.fileObj.write(meta_buf)
             self.fileObj.flush()
-            
+            # 确保数据写入磁盘
+            self.fileObj.flush()
+
     # -------------------------------
     # to determine whether the table named table_name exist, depending on the main memory structures
     # input

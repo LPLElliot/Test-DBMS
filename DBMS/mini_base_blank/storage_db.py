@@ -64,7 +64,7 @@ class Storage(object):
     #       tablename
     # 修改了输出顺序,美化
     # -------------------------------------
-    def __init__(self, tablename):
+    def __init__(self, tablename, field_list_from_create_table=None):
         # print "__init__ of ",Storage.__name__,"begins to execute"
         tablename.strip()
         self.record_list = []
@@ -88,39 +88,67 @@ class Storage(object):
         self.field_name_list = []
         beginIndex = 0
         if my_len == 0:  # there is no data in the block 0, we should write meta data into the block 0
-            if isinstance(tablename, bytes):
-                self.num_of_fields = input(
-                    "please input the number of feilds in table " + tablename.decode('utf-8') + ":")
-            else:
-                self.num_of_fields = input(
-                    "please input the number of feilds in table " + tablename.decode('utf-8') + ":")
-            if int(self.num_of_fields) > 0:
+            if field_list_from_create_table:
+                # 使用提供的字段列表，不需要用户交互
+                self.num_of_fields = len(field_list_from_create_table)
                 self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
                 self.block_id = 0
                 self.data_block_num = 0
-                struct.pack_into('!iii', self.dir_buf, beginIndex, 0, 0,int(self.num_of_fields))  # block_id,number_of_data_blocks,number_of_fields
+                struct.pack_into('!iii', self.dir_buf, beginIndex, 0, 0, self.num_of_fields)
                 beginIndex = beginIndex + struct.calcsize('!iii')
-                # the following is to write the field name,field type and field length into the buffer in turn
-                for i in range(int(self.num_of_fields)):
-                    field_name = input("please input the name of field " + str(i+1) + " :")
+                for i, field_def in enumerate(field_list_from_create_table):
+                    field_name = field_def['name']
+                    field_type = field_def['type_code']
+                    field_length = field_def['length']
+                    
+                    # 确保字段名是10字节长度
                     if len(field_name) < 10:
-                        field_name = ' ' * (10 - len(field_name.strip())) + field_name
-                    while True:
-                        field_type = input(
-                            "please input the type of field(0-> str; 1-> varstr; 2-> int; 3-> boolean) " + str(i+1) + " :")
-                        if int(field_type) in [0, 1, 2, 3]:
-                            break
-                    # to need further modification here
-                    field_length = input("please input the length of field " + str(i+1) + " :")
-                    temp_tuple = (field_name, int(field_type), int(field_length))
+                        field_name_padded = ' ' * (10 - len(field_name)) + field_name
+                    else:
+                        field_name_padded = field_name[:10]
+                    
+                    temp_tuple = (field_name_padded.encode('utf-8'), field_type, field_length)
                     self.field_name_list.append(temp_tuple)
-                    if isinstance(field_name, str):
-                        field_name = field_name.encode('utf-8')
-                    struct.pack_into('!10sii', self.dir_buf, beginIndex, field_name, int(field_type),int(field_length))
+                    struct.pack_into('!10sii', self.dir_buf, beginIndex, field_name_padded.encode('utf-8'), field_type, field_length)
                     beginIndex = beginIndex + struct.calcsize('!10sii')
                 self.f_handle.seek(0)
                 self.f_handle.write(self.dir_buf)
                 self.f_handle.flush()
+            else:
+                # 原有的交互方式
+                if isinstance(tablename, bytes):
+                    self.num_of_fields = int(input(
+                        "please input the number of feilds in table " + tablename.decode('utf-8') + ":"))
+                else:
+                    self.num_of_fields = int(input(
+                        "please input the number of feilds in table " + tablename.decode('utf-8') + ":"))
+                if self.num_of_fields > 0:
+                    self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
+                    self.block_id = 0
+                    self.data_block_num = 0
+                    struct.pack_into('!iii', self.dir_buf, beginIndex, 0, 0, self.num_of_fields)
+                    beginIndex = beginIndex + struct.calcsize('!iii')
+                    # the following is to write the field name,field type and field length into the buffer in turn
+                    for i in range(self.num_of_fields):
+                        field_name = input("please input the name of field " + str(i+1) + " :")
+                        if len(field_name) < 10:
+                            field_name = ' ' * (10 - len(field_name.strip())) + field_name
+                        while True:
+                            field_type = input(
+                                "please input the type of field(0-> str; 1-> varstr; 2-> int; 3-> boolean) " + str(i+1) + " :")
+                            if int(field_type) in [0, 1, 2, 3]:
+                                break
+                        # to need further modification here
+                        field_length = input("please input the length of field " + str(i+1) + " :")
+                        temp_tuple = (field_name, int(field_type), int(field_length))
+                        self.field_name_list.append(temp_tuple)
+                        if isinstance(field_name, str):
+                            field_name = field_name.encode('utf-8')
+                        struct.pack_into('!10sii', self.dir_buf, beginIndex, field_name, int(field_type),int(field_length))
+                        beginIndex = beginIndex + struct.calcsize('!10sii')
+                    self.f_handle.seek(0)
+                    self.f_handle.write(self.dir_buf)
+                    self.f_handle.flush()
         else:  # there is something in the file
             self.block_id, self.data_block_num, self.num_of_fields = struct.unpack_from('!iii', self.dir_buf, 0)
             print('number of fields is ', self.num_of_fields)
