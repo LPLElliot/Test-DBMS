@@ -24,6 +24,7 @@ PROMPT_STR = '''
  | 5: Delete a row by field keyword        |
  | 6: Update a row by field keyword        |
  | 7: SQL                                  |
+ | 9: Index Management                     |
  | .: Quit                                 |
  +-----------------------------------------+
  Input your choice: '''  # the prompt string for user input
@@ -152,6 +153,84 @@ def main():
             except Exception as e:
                 print(f"Error executing SQL: {e}")
             print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
+            choice = input(PROMPT_STR)
+
+        elif choice == '9':  # 索引管理
+            index_menu = '''
+            1: Create index
+            2: Drop index
+            3: Test index performance
+            4: Back to main menu
+            Your choice: '''
+            
+            while True:
+                index_choice = input(index_menu)
+                if index_choice == '1':
+                    # 创建索引
+                    table_name = input('Enter table name: ')
+                    if isinstance(table_name, str):
+                        table_name = table_name.encode('utf-8')
+                    field_name = input('Enter field name to create index: ')
+                    index_type = input('Choose index type (1: B-tree, 2: Hash): ')
+                    
+                    if table_name.strip() in schemaObj.get_table_name_list():
+                        from index_db import Index
+                        idx = Index(table_name.decode('utf-8'))
+                        idx.create_index(field_name)
+                        print(f"Index created on {table_name.decode('utf-8')}.{field_name}")
+                    else:
+                        print("Table not found!")
+
+                elif index_choice == '2':
+                    # 删除索引
+                    table_name = input('Enter table name: ')
+                    if isinstance(table_name, str):
+                        table_name = table_name.encode('utf-8')
+                    if table_name.strip() in schemaObj.get_table_name_list():
+                        import os
+                        if os.path.exists(f"{table_name.decode('utf-8')}.ind"):
+                            os.remove(f"{table_name.decode('utf-8')}.ind")
+                            print("Index dropped successfully")
+                        else:
+                            print("No index exists for this table")
+                            
+                elif index_choice == '3':
+                    # 测试索引性能
+                    table_name = input('Enter table name: ')
+                    if isinstance(table_name, str):
+                        table_name = table_name.encode('utf-8')
+                    field_name = input('Enter field name: ')
+                    search_value = input('Enter search value: ')
+                    
+                    import time
+                    # 不使用索引的查询时间
+                    start_time = time.time()
+                    dataObj = storage_db.Storage(table_name)
+                    dataObj.find_record_by_field(field_name, search_value)
+                    no_index_time = time.time() - start_time
+                    
+                    # 使用索引的查询时间
+                    from index_db import Index
+                    start_time = time.time()
+                    idx = Index(table_name.decode('utf-8'))
+                    # 假设索引已经建立
+                    if os.path.exists(f"{table_name.decode('utf-8')}.ind"):
+                        idx.search_by_index(field_name, search_value)
+                        with_index_time = time.time() - start_time
+                        
+                        print(f"\nPerformance comparison:")
+                        print(f"Without index: {no_index_time:.4f} seconds")
+                        print(f"With index: {with_index_time:.4f} seconds")
+                        print(f"Speed improvement: {(no_index_time/with_index_time):.2f}x")
+                    else:
+                        print("No index exists for this table")
+                    
+                elif index_choice == '4':
+                    break
+                    
+                else:
+                    print("Invalid choice!")
+            
             choice = input(PROMPT_STR)
 
         elif choice == '.':  # quit the program

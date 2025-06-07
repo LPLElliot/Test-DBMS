@@ -494,3 +494,58 @@ class Storage(object):
     # ------------------------------------------------
     def getfilenamelist(self):
         return self.field_name_list
+
+    def find_record_by_field(self, field_name, value):
+        """
+        通过字段名和值查找记录
+        参数:
+            field_name: 字段名
+            value: 要查找的值
+        返回:
+            找到的记录列表
+        """
+        found_records = []
+        # 获取字段索引
+        field_index = -1
+        for i, field in enumerate(self.field_list):
+            if isinstance(field_name, str):
+                field_name = field_name.encode('utf-8')
+            if field[0].strip() == field_name.strip():
+                field_index = i
+                break
+                
+        if field_index == -1:
+            print(f"Field {field_name.decode('utf-8')} not found")
+            return found_records
+            
+        # 读取所有记录进行查找
+        self.f_handle.seek(common_db.BLOCK_SIZE)  # 跳过第一个块
+        while True:
+            block = self.f_handle.read(common_db.BLOCK_SIZE)
+            if not block:
+                break
+                
+            # 解析块中的记录
+            offset = 0
+            while offset < common_db.BLOCK_SIZE:
+                # 读取记录长度
+                record_len = struct.unpack('!i', block[offset:offset+4])[0]
+                if record_len <= 0:
+                    break
+                    
+                # 读取记录内容
+                record = []
+                curr_pos = offset + 4  # 跳过长度字段
+                for field in self.field_list:
+                    field_len = field[2]  # 获取字段长度
+                    field_data = block[curr_pos:curr_pos+field_len].strip()
+                    record.append(field_data)
+                    curr_pos += field_len
+                    
+                # 检查是否匹配
+                if record[field_index].decode('utf-8').strip() == value.strip():
+                    found_records.append(record)
+                    
+                offset += record_len
+                
+        return found_records
