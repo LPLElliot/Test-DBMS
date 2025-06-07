@@ -62,7 +62,6 @@ class Storage(object):
     # constructor of the class
     # input:
     #       tablename
-    # 修改了输出顺序,美化
     # -------------------------------------
     def __init__(self, tablename, field_list_from_create_table=None):
         # print "__init__ of ",Storage.__name__,"begins to execute"
@@ -89,7 +88,6 @@ class Storage(object):
         beginIndex = 0
         if my_len == 0:  # there is no data in the block 0, we should write meta data into the block 0
             if field_list_from_create_table:
-                # 使用提供的字段列表，不需要用户交互
                 self.num_of_fields = len(field_list_from_create_table)
                 self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
                 self.block_id = 0
@@ -100,13 +98,10 @@ class Storage(object):
                     field_name = field_def['name']
                     field_type = field_def['type_code']
                     field_length = field_def['length']
-                    
-                    # 确保字段名是10字节长度
                     if len(field_name) < 10:
                         field_name_padded = ' ' * (10 - len(field_name)) + field_name
                     else:
                         field_name_padded = field_name[:10]
-                    
                     temp_tuple = (field_name_padded.encode('utf-8'), field_type, field_length)
                     self.field_name_list.append(temp_tuple)
                     struct.pack_into('!10sii', self.dir_buf, beginIndex, field_name_padded.encode('utf-8'), field_type, field_length)
@@ -115,7 +110,6 @@ class Storage(object):
                 self.f_handle.write(self.dir_buf)
                 self.f_handle.flush()
             else:
-                # 原有的交互方式
                 if isinstance(tablename, bytes):
                     self.num_of_fields = int(input(
                         "please input the number of feilds in table " + tablename.decode('utf-8') + ":"))
@@ -170,7 +164,6 @@ class Storage(object):
             self.f_handle.seek(BLOCK_SIZE * Flag)
             self.active_data_buf = self.f_handle.read(BLOCK_SIZE)
             if len(self.active_data_buf) < 8:
-        # 数据块为空或不完整，跳过
                 print(f"Warning: Data block {Flag} is empty or incomplete, skipping.")
                 Flag += 1
                 continue
@@ -423,7 +416,6 @@ class Storage(object):
     #       None
     # ------------------------------------------------
     def _rewrite_data_file(self):
-        # 重新写入 block0 的字段定义
         self.f_handle.seek(0)
         self.f_handle.truncate(0)
         dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
@@ -439,7 +431,6 @@ class Storage(object):
         self.f_handle.seek(0)
         self.f_handle.write(dir_buf)
         self.f_handle.flush()
-        # 重新写入数据块
         if self.record_list:
             data_block_num = 1
             num_records = len(self.record_list)
@@ -447,7 +438,6 @@ class Storage(object):
             record_content_len = sum(map(lambda x: x[2], self.field_name_list))
             record_len = record_head_len + record_content_len
             MAX_RECORD_NUM = int((BLOCK_SIZE - struct.calcsize('!i') - struct.calcsize('!ii')) / (record_len + struct.calcsize('!i')))
-            # 只写一个数据块，简化实现
             data_buf = ctypes.create_string_buffer(BLOCK_SIZE)
             struct.pack_into('!ii', data_buf, 0, data_block_num, num_records)
             for i, record in enumerate(self.record_list):
@@ -457,7 +447,6 @@ class Storage(object):
                 record_schema_address = struct.calcsize('!iii')
                 update_time = datetime.datetime.now().strftime('%Y-%m-%d')
                 struct.pack_into('!ii10s', data_buf, beginIndex, record_schema_address, record_content_len, update_time.encode('utf-8'))
-                # 拼接字段内容
                 inputstr = b''
                 for idx, field in enumerate(self.field_name_list):
                     val = record[idx]
@@ -475,14 +464,12 @@ class Storage(object):
             self.f_handle.seek(BLOCK_SIZE)
             self.f_handle.write(data_buf)
             self.f_handle.flush()
-            # 更新 block0 的 data_block_num
             self.f_handle.seek(0)
             self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
             struct.pack_into('!ii', self.buf, 0, 0, 1)
             self.f_handle.write(self.buf)
             self.f_handle.flush()
         else:
-            # 没有数据时，data_block_num 必须为0，且block0结构完整
             self.f_handle.seek(0)
             dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
             beginIndex = 0
@@ -497,6 +484,13 @@ class Storage(object):
             self.f_handle.write(dir_buf)
             self.f_handle.flush()
 
+    # ----------------------------------------------
+    # Author: Xinjian Zhang
+    # to get list of field names for display purposes
+    # input
+    #       None
+    # output
+    #       field_name_list: list of field information tuples
+    # ------------------------------------------------
     def getfilenamelist(self):
-        # 返回字段信息列表，每个元素是 (字段名, 字段类型, 字段长度)
         return self.field_name_list

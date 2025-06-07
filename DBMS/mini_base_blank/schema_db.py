@@ -67,10 +67,6 @@ class Schema(object):
             print ('Table name is ', i[0])
         print ('execute Done!')
 
-    # ------------------------------------------------
-    # constructor of the class
-    # 增加了调试语句,优化了输出
-    # ------------------------------------------------
     def __init__(self,debug=False):
         self.debug = debug
         if self.debug:
@@ -218,8 +214,6 @@ class Schema(object):
             self.fileObj.seek(0)
             self.fileObj.write(meta_buf)
             self.fileObj.flush()
-            # 确保数据写入磁盘
-            self.fileObj.flush()
 
     # -------------------------------
     # to determine whether the table named table_name exist, depending on the main memory structures
@@ -280,7 +274,6 @@ class Schema(object):
         if isinstance(table_name, str):
             table_name = table_name.encode('utf-8')
         table_name = table_name.strip()
-        # 查找要删除的表索引
         for i in range(len(self.headObj.tableNames)):
             tname = self.headObj.tableNames[i][0]
             if isinstance(tname, bytes):
@@ -291,11 +284,9 @@ class Schema(object):
                 tmpIndex = i
                 break
         if tmpIndex >= 0:
-            # 删除 tableNames
             del self.headObj.tableNames[tmpIndex]
             del self.headObj.tableFields[table_name]
             self.headObj.lenOfTableNum -= 1
-            # 更新头部信息
             if len(self.headObj.tableNames) > 0:
                 name_list = [x[0] for x in self.headObj.tableNames]
                 field_num_per_table = [x[1] for x in self.headObj.tableNames]
@@ -306,7 +297,6 @@ class Schema(object):
                 self.headObj.tableNames = list(zip(name_list, field_num_per_table, table_offset))
                 self.headObj.offsetOfBody = self.headObj.tableNames[-1][2] + self.headObj.tableNames[-1][1] * MAX_FIELD_LEN
                 self.WriteBuff()
-            # 更新文件
             else:
                 self.headObj.offsetOfBody = BODY_BEGIN_INDEX
                 self.headObj.isStored = False

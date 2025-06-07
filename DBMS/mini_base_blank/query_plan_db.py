@@ -292,18 +292,25 @@ def construct_logical_tree():
             where_node = construct_where_node(from_node, where_list)
             common_db.global_logical_tree = construct_select_node(where_node, sel_list)
         else:
-            # 对于非SFW查询，直接使用syntax tree
             common_db.global_logical_tree = syn_tree
     else:
         print('there is no data in the syntax tree in the construct_logical_tree')
 
-# 新增的执行函数
+# ----------------------------------------------
+# Author: Xinjian Zhang
+# to execute CREATE TABLE SQL statements
+# input
+#       syn_tree: syntax tree node for CREATE TABLE
+#       schema_obj: schema object to manage table definitions
+# output
+#       None (creates table in schema and storage)
+# ------------------------------------------------
 def execute_create_table(syn_tree, schema_obj=None):
     if syn_tree.value == 'CREATE_TABLE':
         table_name = syn_tree.var['table_name']
         fields = syn_tree.var['fields']
         
-        # 使用传递的 schema_obj，如果没有则创建新的
+        # Use provided schema_obj or create new one
         if schema_obj is None:
             schema_obj = schema_db.Schema()
         
@@ -313,14 +320,14 @@ def execute_create_table(syn_tree, schema_obj=None):
             return
         
         try:
-            # 添加到 schema 先
+            # Add to schema first
             field_list = []
             for field_def in fields:
                 field_name = field_def['name']
                 type_code = field_def['type_code']
                 length = field_def['length']
                 
-                # 确保字段名是10字节长度
+                # Ensure field name is 10 bytes length
                 if len(field_name) < 10:
                     field_name_padded = ' ' * (10 - len(field_name)) + field_name
                 else:
@@ -330,13 +337,22 @@ def execute_create_table(syn_tree, schema_obj=None):
             
             schema_obj.appendTable(table_name_bytes, field_list)
             
-            # 创建数据文件，传递字段定义以避免交互
+            # Create data file with predefined fields to avoid interaction
             storage_obj = storage_db.Storage(table_name_bytes, field_list_from_create_table=fields)
             
             print(f"Table '{table_name}' created successfully!")
         except Exception as e:
             print(f"Error creating table: {e}")
 
+# ----------------------------------------------
+# Author: Xinjian Zhang
+# to execute INSERT INTO SQL statements
+# input
+#       syn_tree: syntax tree node for INSERT INTO
+#       schema_obj: schema object (optional)
+# output
+#       None (inserts record into table)
+# ------------------------------------------------
 def execute_insert_into(syn_tree, schema_obj=None):
     if syn_tree.value == 'INSERT_INTO':
         table_name = syn_tree.var['table_name']
@@ -352,6 +368,15 @@ def execute_insert_into(syn_tree, schema_obj=None):
         except Exception as e:
             print(f"Error inserting record: {e}")
 
+# ----------------------------------------------
+# Author: Xinjian Zhang
+# to execute DELETE FROM SQL statements
+# input
+#       syn_tree: syntax tree node for DELETE FROM
+#       schema_obj: schema object (optional)
+# output
+#       None (deletes records from table)
+# ------------------------------------------------
 def execute_delete_from(syn_tree, schema_obj=None):
     if syn_tree.value == 'DELETE_FROM':
         table_name = syn_tree.var['table_name']
@@ -362,19 +387,33 @@ def execute_delete_from(syn_tree, schema_obj=None):
             storage_obj = storage_db.Storage(table_name_bytes)
             
             if condition is None:
-                # 删除所有记录
+                # Delete all records
                 storage_obj.record_list = []
                 storage_obj._rewrite_data_file()
                 print(f"All records deleted from '{table_name}'!")
             else:
-                # 根据条件删除
+                # Delete based on condition
                 field_name = condition.children[0].children[0]  # TCNAME
                 value = condition.children[2].children[0]       # CONSTANT
+                
+                # Remove quotes from value if present
+                if isinstance(value, str) and value.startswith("'") and value.endswith("'"):
+                    value = value[1:-1]
+                
                 storage_obj.delete_record_by_field(field_name, value)
                 print(f"Records deleted from '{table_name}' where {field_name}='{value}'!")
         except Exception as e:
             print(f"Error deleting from table: {e}")
 
+# ----------------------------------------------
+# Author: Xinjian Zhang
+# to execute UPDATE SET SQL statements
+# input
+#       syn_tree: syntax tree node for UPDATE SET
+#       schema_obj: schema object (optional)
+# output
+#       None (updates records in table)
+# ------------------------------------------------
 def execute_update_set(syn_tree, schema_obj=None):
     if syn_tree.value == 'UPDATE_SET':
         table_name = syn_tree.var['table_name']
@@ -385,24 +424,97 @@ def execute_update_set(syn_tree, schema_obj=None):
             table_name_bytes = table_name.encode('utf-8')
             storage_obj = storage_db.Storage(table_name_bytes)
             
-            # 获取更新字段和值
+            # Process each assignment
             for assignment in assignments:
                 update_field = assignment['column']
                 new_value = assignment['value']
                 
+                # Remove quotes from new_value if present
+                if isinstance(new_value, str) and new_value.startswith("'") and new_value.endswith("'"):
+                    new_value = new_value[1:-1]
+                
                 if condition:
-                    # 根据条件更新
+                    # Update based on condition
                     condition_field = condition.children[0].children[0]  # TCNAME
                     condition_value = condition.children[2].children[0]  # CONSTANT
-                    storage_obj.update_record_by_field(condition_field, condition_value, new_value)
+                    
+                    # Remove quotes from condition_value if present
+                    if isinstance(condition_value, str) and condition_value.startswith("'") and condition_value.endswith("'"):
+                        condition_value = condition_value[1:-1]
+                    
+                    # Handle case where update field differs from condition field
+                    if update_field == condition_field:
+                        # If update field and condition field are the same, use existing method
+                        storage_obj.update_record_by_field(condition_field, condition_value, new_value)
+                    else:
+                        # Custom update logic for different fields
+                        updated = False
+                        
+                        # Find field indices
+                        condition_field_index = None
+                        update_field_index = None
+                        
+                        for idx, field in enumerate(storage_obj.field_name_list):
+                            field_name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
+                            if field_name == condition_field:
+                                condition_field_index = idx
+                            if field_name == update_field:
+                                update_field_index = idx
+                        
+                        if condition_field_index is not None and update_field_index is not None:
+                            # Iterate through records to find matching condition
+                            for i, record in enumerate(storage_obj.record_list):
+                                record_value = record[condition_field_index]
+                                if isinstance(record_value, bytes):
+                                    record_value = record_value.decode('utf-8').strip()
+                                else:
+                                    record_value = str(record_value).strip()
+                                
+                                if record_value == condition_value:
+                                    # Found matching record, update target field
+                                    record_list = list(record)
+                                    
+                                    # Handle field type for new value
+                                    field_type = storage_obj.field_name_list[update_field_index][1]
+                                    field_length = storage_obj.field_name_list[update_field_index][2]
+                                    
+                                    if field_type == 0 or field_type == 1:  # String types
+                                        # Ensure new value fits field length
+                                        padded_value = new_value.ljust(field_length)[:field_length]
+                                        record_list[update_field_index] = padded_value.encode('utf-8')
+                                    elif field_type == 2:  # Integer type
+                                        record_list[update_field_index] = int(new_value)
+                                    elif field_type == 3:  # Boolean type
+                                        record_list[update_field_index] = bool(new_value)
+                                    
+                                    storage_obj.record_list[i] = tuple(record_list)
+                                    updated = True
+                                    print(f"Updated record: {condition_field}='{condition_value}' -> {update_field}='{new_value}'")
+                                    break
+                            
+                            if updated:
+                                storage_obj._rewrite_data_file()
+                            else:
+                                print("No matching record found.")
+                        else:
+                            print(f"Field not found: {condition_field} or {update_field}")
                 else:
-                    # 更新所有记录
+                    # Update all records (no WHERE condition)
                     print("Update without WHERE clause not implemented for safety!")
                 
             print(f"Records updated in '{table_name}'!")
         except Exception as e:
             print(f"Error updating table: {e}")
 
+# ----------------------------------------------
+# Author: Xinjian Zhang
+# to execute DROP TABLE SQL statements
+# input
+#       syn_tree: syntax tree node for DROP TABLE
+#       schema_obj: schema object (optional)
+# output
+#       None (drops table from schema and storage)
+# ------------------------------------------------
 def execute_drop_table(syn_tree, schema_obj=None):
     if syn_tree.value == 'DROP_TABLE':
         table_name = syn_tree.var['table_name']
@@ -410,14 +522,14 @@ def execute_drop_table(syn_tree, schema_obj=None):
         try:
             table_name_bytes = table_name.encode('utf-8')
             
-            # 使用传递的 schema_obj，如果没有则创建新的
+            # Use provided schema_obj or create new one
             if schema_obj is None:
                 schema_obj = schema_db.Schema()
             
             if schema_obj.find_table(table_name_bytes):
-                # 删除表结构
+                # Delete table schema
                 schema_obj.delete_table_schema(table_name_bytes)
-                # 删除数据文件
+                # Delete data file
                 storage_obj = storage_db.Storage(table_name_bytes)
                 storage_obj.delete_table_data(table_name_bytes)
                 print(f"Table '{table_name}' dropped successfully!")
@@ -426,8 +538,16 @@ def execute_drop_table(syn_tree, schema_obj=None):
         except Exception as e:
             print(f"Error dropping table: {e}")
 
+# ----------------------------------------------
+# Author: Xinjian Zhang
+# unified entry point for executing SQL statements
+# input
+#       schema_obj: schema object to manage table definitions
+# output
+#       None (executes appropriate SQL operation)
+# ------------------------------------------------
 def execute_sql_statement(schema_obj=None):
-    """执行SQL语句的统一入口"""
+    """Unified entry point for executing SQL statements"""
     syn_tree = common_db.global_syn_tree
     if not syn_tree:
         print("No syntax tree to execute!")
