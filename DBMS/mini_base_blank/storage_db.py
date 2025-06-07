@@ -56,6 +56,8 @@ import ctypes
 # the class can store table data into files
 # functions include insert, delete and update
 # --------------------------------------------
+import log_db
+import uuid
 
 class Storage(object):
     # ------------------------------
@@ -206,6 +208,13 @@ class Storage(object):
         # example: ['xuyidan','23','123456']
         # step 1 : to check the insert_record is True or False
         tmpRecord = []
+        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
+        # 1. 活动事务登记
+        log_db.LogManager.add_active_tx(tx_id)
+        
+        # 2. 写前像日志（插入前，前像为None）
+        log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), None)
+
         for idx in range(len(self.field_name_list)):
             insert_record[idx] = insert_record[idx].strip()
             if self.field_name_list[idx][1] == 0 or self.field_name_list[idx][1] == 1:
@@ -223,9 +232,16 @@ class Storage(object):
                 except:
                     return False
             insert_record[idx] = ' ' * (self.field_name_list[idx][2] - len(insert_record[idx])) + insert_record[idx]
+        # 4. 写后像日志（插入后，记录内容）
+        log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), tmpRecord)
+
+        # 5. 写提交事务表（提交规则：后像日志必须已写入）
+        log_db.LogManager.add_commit_tx(tx_id)
+        
         # step2: Add tmpRecord to record_list ; change insert_record into inputstr
         inputstr = ''.join(insert_record)
         self.record_list.append(tuple(tmpRecord))
+        
         # Step3: To calculate MaxNum in each Data Blocks
         record_content_len = len(inputstr)
         record_head_len = struct.calcsize('!ii10s')
@@ -273,6 +289,8 @@ class Storage(object):
         struct.pack_into('!' + str(record_content_len) + 's', self.buf, record_head_len, inputstr.encode('utf-8'))
         self.f_handle.write(self.buf.raw)
         self.f_handle.flush()
+        # 4. 事务提交日志
+        log_db.LogManager.add_commit_tx(tx_id)
         return True
 
     # ------------------------------
@@ -372,6 +390,10 @@ class Storage(object):
     # ------------------------------------------------
     def update_record_by_field(self, field_name, old_value, new_value):
         field_index = None
+        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
+        # 1. 活动事务登记
+        log_db.LogManager.add_active_tx(tx_id)
+
         for idx, field in enumerate(self.field_name_list):
             name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
             if name == field_name:
@@ -385,6 +407,8 @@ class Storage(object):
             value = record[field_index]
             value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
             if value_str == old_value:
+                # 2. 写前像日志（更新前的整条记录）
+                log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), list(record))
                 record = list(record)
                 if isinstance(record[field_index], int):
                     try:
@@ -398,6 +422,10 @@ class Storage(object):
                     record[field_index] = new_value
                 self.record_list[i] = tuple(record)
                 updated = True
+                # 4. 写后像日志（更新后的整条记录）
+                log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), tuple(record))
+                # 5. 写提交事务表
+                log_db.LogManager.add_commit_tx(tx_id)
                 break
         if updated:
             self._rewrite_data_file()

@@ -12,6 +12,7 @@ import lex_db  # for lex, where data is stored in binary format
 import parser_db  # for yacc, where ddata is tored in binary format
 import common_db  # the global variables, functions, constants in the program
 import query_plan_db  # construct the query plan and execute it
+import log_db  # for logging, where data is stored in binary format
 
 PROMPT_STR = '''
  +-----------------------------------------+
@@ -23,7 +24,8 @@ PROMPT_STR = '''
  | 4: Delete all tables and data           |
  | 5: Delete a row by field keyword        |
  | 6: Update a row by field keyword        |
- | 7: SQL                                  |
+ | 7: SQL Query Processing                 |
+ | 8: View log files                       |
  | .: Quit                                 |
  +-----------------------------------------+
  Input your choice: '''  # the prompt string for user input
@@ -123,7 +125,8 @@ def main():
                 dataObj.delete_record_by_field(field_name.strip(), keyword.strip())
                 del dataObj
             else:
-                print("Input format error. Please use fieldname:keyword")
+                print
+                ("Input format error. Please use fieldname:keyword")
             choice = input(PROMPT_STR)
 
         elif choice == '6':  # update a line of data given the keyword
@@ -153,6 +156,27 @@ def main():
                 print(f"Error executing SQL: {e}")
             print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
             choice = input(PROMPT_STR)
+
+        elif choice == '8':
+            print("------ 查看日志 ------")
+            before_logs = log_db.LogManager.read_log_file(log_db.BEFORE_IMAGE_FILE)
+            after_logs = log_db.LogManager.read_log_file(log_db.AFTER_IMAGE_FILE)
+            active_logs = log_db.LogManager.read_log_file(log_db.ACTIVE_TX_FILE)
+            commit_logs = log_db.LogManager.read_log_file(log_db.COMMIT_TX_FILE)
+            print("前像日志：")
+            for log in before_logs:
+                print(log)
+            print("后像日志：")
+            for log in after_logs:
+                print(log)
+            print("活动事务表：")
+            for log in active_logs:
+                print(log)
+            print("提交事务表：")
+            for log in commit_logs:
+                print(log)
+            choice = input(PROMPT_STR)
+            
 
         elif choice == '.':  # quit the program
             print('main loop finishies')
