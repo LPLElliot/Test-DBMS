@@ -52,6 +52,7 @@ from common_db import BLOCK_SIZE
 import struct
 import os
 import ctypes
+import common_db  # 添加这行导入
 # --------------------------------------------
 # the class can store table data into files
 # functions include insert, delete and update
@@ -495,57 +496,95 @@ class Storage(object):
     def getfilenamelist(self):
         return self.field_name_list
 
-    def find_record_by_field(self, field_name, value):
-        """
-        通过字段名和值查找记录
-        参数:
-            field_name: 字段名
-            value: 要查找的值
-        返回:
-            找到的记录列表
-        """
+    def read_record(self, offset):
+        """读取记录"""
+        try:
+            record = []
+            field_list = self.getFieldList()
+            
+            for field in field_list:
+                field_len = field[2]
+                field_data = self.f_handle.read(field_len)
+                record.append(field_data)
+                
+            return record
+        except Exception as e:
+            print(f"读取记录出错: {str(e)}")
+            return None
+
+    def find_record_by_field(self, field_name, search_value):
+        """按字段查找记录"""
         found_records = []
-        # 获取字段索引
+        field_list = self.getFieldList()
+        
+        # 获取字段索引和类型
         field_index = -1
-        for i, field in enumerate(self.field_list):
-            if isinstance(field_name, str):
-                field_name = field_name.encode('utf-8')
+        field_type = None
+        if isinstance(field_name, str):
+            field_name = field_name.encode('utf-8')
+        
+        for i, field in enumerate(field_list):
             if field[0].strip() == field_name.strip():
                 field_index = i
+                field_type = field[1]
                 break
+        
+        try:
+            # 准备搜索值
+            if field_type == 2:  # 整数类型
+                search_int = int(search_value)
+                search_value = struct.pack('!q', search_int)
+                print(f"\n搜索条件:")
+                print(f"字段: {field_name.decode('utf-8')}")
+                print(f"搜索整数值: {search_int}")
+            else:
+                if isinstance(search_value, str):
+                    search_value = search_value.encode('utf-8')
+                print(f"\n搜索条件:")
+                print(f"字段: {field_name.decode('utf-8')}")
+                print(f"搜索值: {search_value.decode('utf-8')}")
+        
+            # 读取数据块
+            for block_id in range(1, self.data_block_num + 1):
+                self.f_handle.seek(block_id * common_db.BLOCK_SIZE)
+                block = self.f_handle.read(common_db.BLOCK_SIZE)
                 
-        if field_index == -1:
-            print(f"Field {field_name.decode('utf-8')} not found")
+                num_records = struct.unpack('!i', block[:4])[0]
+                curr_offset = 4
+                
+                print(f"\n处理数据块 {block_id}, 包含 {num_records} 条记录")
+                
+                # 读取每条记录
+                for i in range(num_records):
+                    record = []
+                    offset = curr_offset
+                    
+                    # 读取每个字段
+                    for field in field_list:
+                        field_len = field[2]
+                        field_data = block[offset:offset+field_len]
+                        record.append(field_data)
+                        offset += field_len
+                    
+                    # 比较字段值
+                    field_value = record[field_index]
+                    if field_type == 2:  # 整数类型
+                        value_int = struct.unpack('!q', field_value)[0]
+                        print(f"比较: {value_int} vs {struct.unpack('!q', search_value)[0]}")
+                        if value_int == struct.unpack('!q', search_value)[0]:
+                            print(f"找到匹配记录!")
+                            found_records.append((record, block_id, curr_offset))
+                    else:
+                        if field_value.strip() == search_value.strip():
+                            found_records.append((record, block_id, curr_offset))
+                    
+                    curr_offset = offset
+        
+        except Exception as e:
+            print(f"查找记录时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return found_records
-            
-        # 读取所有记录进行查找
-        self.f_handle.seek(common_db.BLOCK_SIZE)  # 跳过第一个块
-        while True:
-            block = self.f_handle.read(common_db.BLOCK_SIZE)
-            if not block:
-                break
-                
-            # 解析块中的记录
-            offset = 0
-            while offset < common_db.BLOCK_SIZE:
-                # 读取记录长度
-                record_len = struct.unpack('!i', block[offset:offset+4])[0]
-                if record_len <= 0:
-                    break
-                    
-                # 读取记录内容
-                record = []
-                curr_pos = offset + 4  # 跳过长度字段
-                for field in self.field_list:
-                    field_len = field[2]  # 获取字段长度
-                    field_data = block[curr_pos:curr_pos+field_len].strip()
-                    record.append(field_data)
-                    curr_pos += field_len
-                    
-                # 检查是否匹配
-                if record[field_index].decode('utf-8').strip() == value.strip():
-                    found_records.append(record)
-                    
-                offset += record_len
-                
+        
+        print(f"\n共找到 {len(found_records)} 条记录")
         return found_records

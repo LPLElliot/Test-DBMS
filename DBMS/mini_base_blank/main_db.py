@@ -195,36 +195,89 @@ def main():
                             print("No index exists for this table")
                             
                 elif index_choice == '3':
-                    # 测试索引性能
-                    table_name = input('Enter table name: ')
-                    if isinstance(table_name, str):
-                        table_name = table_name.encode('utf-8')
-                    field_name = input('Enter field name: ')
-                    search_value = input('Enter search value: ')
-                    
-                    import time
-                    # 不使用索引的查询时间
-                    start_time = time.time()
-                    dataObj = storage_db.Storage(table_name)
-                    dataObj.find_record_by_field(field_name, search_value)
-                    no_index_time = time.time() - start_time
-                    
-                    # 使用索引的查询时间
-                    from index_db import Index
-                    start_time = time.time()
-                    idx = Index(table_name.decode('utf-8'))
-                    # 假设索引已经建立
-                    if os.path.exists(f"{table_name.decode('utf-8')}.ind"):
-                        idx.search_by_index(field_name, search_value)
-                        with_index_time = time.time() - start_time
+                    try:
+                        # 测试索引性能
+                        table_name = input('Enter table name: ')
+                        if isinstance(table_name, str):
+                            table_name = table_name.encode('utf-8')
+                        field_name = input('Enter field name: ')
+                        search_value = input('Enter search value: ')
                         
-                        print(f"\nPerformance comparison:")
-                        print(f"Without index: {no_index_time:.4f} seconds")
-                        print(f"With index: {with_index_time:.4f} seconds")
-                        print(f"Speed improvement: {(no_index_time/with_index_time):.2f}x")
-                    else:
-                        print("No index exists for this table")
-                    
+                        import time
+                        import os
+                        
+                        print("\n开始性能测试...")
+                        print("-" * 50)
+                        print(f"表名: {table_name.decode('utf-8')}")
+                        print(f"字段: {field_name}")
+                        print(f"搜索值: {search_value}")
+                        print("-" * 50)
+
+                        # 不使用索引的查询时间
+                        print("\n1. 顺序扫描测试")
+                        start_time = time.time()
+                        dataObj = storage_db.Storage(table_name)
+                        results = dataObj.find_record_by_field(field_name, search_value)
+                        no_index_time = time.time() - start_time
+                        
+                        # 使用索引的查询时间
+                        print("\n2. 索引查询测试")
+                        from index_db import Index
+                        start_time = time.time()
+                        idx = Index(table_name.decode('utf-8'))
+                        
+                        if os.path.exists(f"{table_name.decode('utf-8')}.ind"):
+                            index_results = idx.search_by_index(field_name, search_value)
+                            with_index_time = time.time() - start_time
+                            
+                            print("\n性能对比结果:")
+                            print("-" * 50)
+                            print("1. 顺序扫描:")
+                            if results:
+                                print("找到以下记录:")
+                                for record, block_id, offset in results:
+                                    print(f"\n- 块号: {block_id}, 偏移量: {offset}")
+                                    for field, value in zip(dataObj.getFieldList(), record):
+                                        hex_value = ' '.join(f'{b:02x}' for b in value)
+                                        str_value = value.decode('utf-8', 'ignore').strip()
+                                        print(f"  {field[0].decode('utf-8').strip()}: {str_value} (hex: {hex_value})")
+                            print(f"总记录数: {len(results)}")
+                            print(f"耗时: {no_index_time:.6f} 秒")
+
+                            print("\n2. 索引查询:")
+                            if index_results:
+                                print("找到以下记录:")
+                                for block_id, offset in index_results:
+                                    print(f"- 块号: {block_id}, 偏移量: {offset}")
+                                    # 读取并显示记录内容
+                                    dataObj.f_handle.seek(block_id * common_db.BLOCK_SIZE + offset)
+                                    record = dataObj.read_record(offset)
+                                    if record:
+                                        for field, value in zip(dataObj.getFieldList(), record):
+                                            hex_value = ' '.join(f'{b:02x}' for b in value)
+                                            str_value = value.decode('utf-8', 'ignore').strip()
+                                            print(f"  {field[0].decode('utf-8').strip()}: {str_value} (hex: {hex_value})")
+                            print(f"总记录数: {len(index_results)}")
+                            print(f"耗时: {with_index_time:.4f} 秒")
+                            
+                            if with_index_time > 0 and len(results) > 0:
+                                speedup = no_index_time / with_index_time
+                                print(f"\n性能分析:")
+                                print(f"- 加速比: {speedup:.2f}x")
+                                print(f"- 结果一致性: {'一致' if len(results) == len(index_results) else '不一致'}")
+                        else:
+                            print("\n未找到索引文件，请先创建索引")
+                        
+                    except Exception as e:
+                        print(f"\n性能测试出错: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                    finally:
+                        if 'dataObj' in locals():
+                            del dataObj
+                        if 'idx' in locals():
+                            del idx
+                        
                 elif index_choice == '4':
                     break
                     
