@@ -66,20 +66,20 @@ class Storage(object):
     #       tablename
     # -------------------------------------
     def __init__(self, tablename, field_list_from_create_table=None):
-        # print "__init__ of ",Storage.__name__,"begins to execute"
-        tablename.strip()
+        self.tablename = tablename.decode('utf-8') if isinstance(tablename, bytes) else tablename
+        tablename = self.tablename.strip()
         self.record_list = []
         self.record_Position = []
-        if isinstance(tablename,str):
-            tablename=tablename.encode('utf-8')
-        if not os.path.exists(tablename + '.dat'.encode('utf-8')):  # the file corresponding to the table does not exist
-            print(('table file ' + tablename.decode('utf-8') + '.dat does not exists'))
-            self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'wb+')
+        self.data_block_num = 0  # 保证属性总是存在
+
+        if not os.path.exists(tablename + '.dat'):
+            print('table file ' + tablename + '.dat does not exist')
+            self.f_handle = open(tablename + '.dat', 'wb+')
             self.f_handle.close()
             self.open = False
-            print(('table file ' + tablename.decode('utf-8') + '.dat has been created'))
-        self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'rb+')
-        print(f'table file {tablename.decode("utf-8")}.dat has been opened')
+            print('table file ' + tablename + '.dat has been created')
+        self.f_handle = open(tablename + '.dat', 'rb+')
+        print(f'table file {tablename}.dat has been opened')
         self.open = True
         self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
         self.f_handle.seek(0)
@@ -117,7 +117,7 @@ class Storage(object):
                         "please input the number of feilds in table " + tablename.decode('utf-8') + ":"))
                 else:
                     self.num_of_fields = int(input(
-                        "please input the number of feilds in table " + tablename.decode('utf-8') + ":"))
+                        "please input the number of feilds in table " + tablename + ":"))
                 if self.num_of_fields > 0:
                     self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
                     self.block_id = 0
@@ -351,6 +351,11 @@ class Storage(object):
     #       True or False
     # ------------------------------------------------
     def delete_record_by_field(self, field_name, keyword):
+        import uuid
+        import log_db
+        tx_id = str(uuid.uuid4())
+        log_db.LogManager.add_active_tx(tx_id)
+
         field_index = None
         for idx, field in enumerate(self.field_name_list):
             name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
@@ -360,18 +365,25 @@ class Storage(object):
         if field_index is None:
             print(f"Field '{field_name}' not found.")
             return False
+
         new_records = []
         deleted = False
         for record in self.record_list:
             value = record[field_index]
             value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
             if not deleted and value_str == keyword:
+                # 1. 前像日志（删除前的原始数据）
+                log_db.LogManager.log_before_image(tx_id, self.tablename, list(record))
+                # 2. 后像日志（删除后为None）
+                log_db.LogManager.log_after_image(tx_id, self.tablename, None)
                 deleted = True
                 continue
             new_records.append(record)
         if deleted:
             self.record_list = new_records
             self._rewrite_data_file()
+            # 3. 提交事务日志
+            log_db.LogManager.add_commit_tx(tx_id)
             print("Record deleted.")
             return True
         else:
