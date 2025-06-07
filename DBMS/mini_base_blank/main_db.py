@@ -188,7 +188,6 @@ def main():
             3: Test index performance
             4: Back to main menu
             Your choice: '''
-            
             while True:
                 index_choice = input(index_menu)
                 if index_choice == '1':
@@ -198,7 +197,6 @@ def main():
                         table_name = table_name.encode('utf-8')
                     field_name = input('Enter field name to create index: ')
                     index_type = input('Choose index type (1: B-tree, 2: Hash): ')
-                    
                     if table_name.strip() in schemaObj.get_table_name_list():
                         from index_db import Index
                         idx = Index(table_name.decode('utf-8'))
@@ -206,7 +204,6 @@ def main():
                         print(f"Index created on {table_name.decode('utf-8')}.{field_name}")
                     else:
                         print("Table not found!")
-
                 elif index_choice == '2':
                     # 删除索引
                     table_name = input('Enter table name: ')
@@ -218,8 +215,7 @@ def main():
                             os.remove(f"{table_name.decode('utf-8')}.ind")
                             print("Index dropped successfully")
                         else:
-                            print("No index exists for this table")
-                            
+                            print("No index exists for this table")  
                 elif index_choice == '3':
                     try:
                         # 测试索引性能
