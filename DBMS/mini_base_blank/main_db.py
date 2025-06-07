@@ -21,12 +21,12 @@ PROMPT_STR = '''
  | 2: Delete a table structure and data    |
  | 3: View a table structure and data      |
  | 4: Delete all tables and data           |
- | 5: SELECT FROM WHERE clause             |
- | 6: Delete a row by field keyword        |
- | 7: Update a row by field keyword        |
+ | 5: Delete a row by field keyword        |
+ | 6: Update a row by field keyword        |
+ | 7: SQL                                  |
  | .: Quit                                 |
  +-----------------------------------------+
- Input your choice: '''  # the prompt string for user input(美化了选择窗口)
+ Input your choice: '''  # the prompt string for user input
 
 # --------------------------
 # the main loop, which needs further implementation
@@ -38,6 +38,7 @@ def main():
     schemaObj = schema_db.Schema(debug=True)  # to create a schema object, which contains the schema of all tables(增加了调试选项)
     dataObj = None
     choice = input(PROMPT_STR)
+
     while True:
         if choice == '1':  # add a new table and lines of data
             tableName = input('please enter your new table name:')
@@ -111,18 +112,7 @@ def main():
             schemaObj.deleteAll()  # delete schema from schema file
             choice = input(PROMPT_STR)
 
-        elif choice == '5':  # process SELECT FROM WHERE clause(美化了窗口)
-            print('#' + '-'*30 + ' SQL QUERY BEGIN ' + '-'*30 + '#')
-            sql_str = input('please enter the select from where clause:')
-            lex_db.set_lex_handle()  # to set the global_lexer in common_db.py
-            parser_db.set_handle()  # to set the global_parser in common_db.py
-            common_db.global_syn_tree = common_db.global_parser.parse(sql_str.strip(),lexer=common_db.global_lexer)  # construct the global_syn_tree
-            query_plan_db.construct_logical_tree()
-            query_plan_db.execute_logical_tree()
-            print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
-            choice = input(PROMPT_STR)
-
-        elif choice == '6':  # delete a line of data from the storage file given the keyword
+        elif choice == '5':  # delete a line of data from the storage file given the keyword
             table_name = input('please input the name of the table to be deleted from:')
             if isinstance(table_name, str):
                 table_name = table_name.encode('utf-8')
@@ -136,7 +126,7 @@ def main():
                 print("Input format error. Please use fieldname:keyword")
             choice = input(PROMPT_STR)
 
-        elif choice == '7':  # update a line of data given the keyword
+        elif choice == '6':  # update a line of data given the keyword
             table_name = input('please input the name of the table:')
             if isinstance(table_name, str):
                 table_name = table_name.encode('utf-8')
@@ -146,6 +136,22 @@ def main():
             dataObj = storage_db.Storage(table_name)
             dataObj.update_record_by_field(field_name.strip(), old_value.strip(), new_value.strip())
             del dataObj
+            choice = input(PROMPT_STR)
+
+        elif choice == '7':  # process SQL statements
+            print('#' + '-'*30 + ' SQL QUERY BEGIN ' + '-'*30 + '#')
+            sql_str = input('please enter SQL statement: ')
+            try:
+                lex_db.set_lex_handle()  # to set the global_lexer in common_db.py
+                parser_db.set_handle()  # to set the global_parser in common_db.py
+                common_db.global_syn_tree = common_db.global_parser.parse(sql_str.strip().lower(), lexer=common_db.global_lexer)  # construct the global_syn_tree
+                if common_db.global_syn_tree:
+                    query_plan_db.execute_sql_statement(schemaObj) 
+                else:
+                    print("Failed to parse SQL statement!")
+            except Exception as e:
+                print(f"Error executing SQL: {e}")
+            print('#' + '-'*30 + ' SQL QUERY END ' + '-'*31 + '#')
             choice = input(PROMPT_STR)
 
         elif choice == '.':  # quit the program
