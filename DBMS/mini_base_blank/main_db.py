@@ -106,11 +106,9 @@ def main():
                     print(table[0].decode('utf-8').strip())
                 else:
                     print(str(table[0]).strip())
-            
             table_name = input('Please input the name of the table to be displayed: ')
             if isinstance(table_name, str):
                 table_name = table_name.encode('utf-8')
-            
             if table_name.strip():
                 if schema_obj.find_table(table_name.strip()):
                     data_obj = storage_db.Storage(table_name, debug=True)  # Show debug info only here
@@ -137,7 +135,6 @@ def main():
             table_name = input('Please input the name of the table to delete from: ')
             if isinstance(table_name, str):
                 table_name = table_name.encode('utf-8')
-            
             field_input = input('Please input the field name and keyword (fieldname:keyword): ')
             if ':' in field_input:
                 field_name, keyword = field_input.split(':', 1)
@@ -153,7 +150,6 @@ def main():
             table_name = input('Please input the name of the table to update: ')
             if isinstance(table_name, str):
                 table_name = table_name.encode('utf-8')
-            
             field_input = input('Please input the field name and keyword (fieldname:keyword): ')
             if ':' in field_input:
                 field_name, old_value = field_input.split(':', 1)
@@ -174,40 +170,6 @@ def main():
                 # Check for exit command
                 if sql_str == '.':
                     break
-                # Check for test data generation command
-                if sql_str == '+':
-                    try:
-                        create_sql = "CREATE TABLE bigtest(id INTEGER, name CHAR(20), age INTEGER, score INTEGER);"
-                        print(f"Executing: {create_sql}")
-                        lex_db.set_lex_handle()
-                        parser_db.set_parser_handle()
-                        common_db.global_lexer.input(create_sql)
-                        common_db.global_syn_tree = common_db.global_parser.parse(lexer=common_db.global_lexer)
-                        if common_db.global_syn_tree:
-                            query_plan_db.execute_sql_statement(schema_obj)
-                        import random
-                        success_count = 0
-                        for i in range(1, 20001):
-                            name = f"Student{i:03d}"
-                            age = random.choice([18, 19, 20, 21, 22])
-                            score = random.randint(70, 100)
-                            insert_sql = f"INSERT INTO bigtest VALUES ({i}, '{name}', {age}, {score});"
-                            try:
-                                lex_db.set_lex_handle()
-                                parser_db.set_parser_handle()
-                                common_db.global_lexer.input(insert_sql)
-                                common_db.global_syn_tree = common_db.global_parser.parse(lexer=common_db.global_lexer)
-                                if common_db.global_syn_tree:
-                                    query_plan_db.execute_sql_statement(schema_obj)
-                                    success_count += 1
-                                if i % 5000 == 0:
-                                    print(f"Progress: {i}/20000 records inserted")
-                            except Exception as e:
-                                print(f"Error inserting record {i}: {e}")
-                    except Exception as e:
-                        print(f"Error generating test data: {e}")
-                    print()
-                    continue
                 # Skip empty input
                 if not sql_str:
                     continue
@@ -230,8 +192,7 @@ def main():
             before_logs = log_db.LogManager.read_log_file(log_db.BEFORE_IMAGE_FILE)
             after_logs = log_db.LogManager.read_log_file(log_db.AFTER_IMAGE_FILE)
             active_logs = log_db.LogManager.read_log_file(log_db.ACTIVE_TX_FILE)
-            commit_logs = log_db.LogManager.read_log_file(log_db.COMMIT_TX_FILE)
-            
+            commit_logs = log_db.LogManager.read_log_file(log_db.COMMIT_TX_FILE) 
             print("Before Image Log:")
             for log in before_logs:
                 print(f'{log.strip()}')
