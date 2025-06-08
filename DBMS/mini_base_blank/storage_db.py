@@ -201,6 +201,7 @@ class Storage(object):
         return self.record_list
 
     # --------------------------------
+    # modified by: Ruizhe Yang   419198812@qq.com
     # to insert a record into table
     # param insert_record: list
     # return: True or False
@@ -344,6 +345,7 @@ class Storage(object):
     
     # ----------------------------------------------
     # Author: Xinjian Zhang
+    # modified by: Ruizhe Yang   419198812@qq.com
     # to delete the first record matching a field value and rewrite the data file
     # input
     #       field_name: the field to match
@@ -393,6 +395,7 @@ class Storage(object):
 
     # ----------------------------------------------
     # Author: Xinjian Zhang
+    # modified by: Ruizhe Yang   419198812@qq.com
     # to update the first record matching a field value and rewrite the data file
     # input
     #       field_name: the field to match

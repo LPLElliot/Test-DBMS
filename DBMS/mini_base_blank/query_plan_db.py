@@ -301,6 +301,7 @@ def construct_logical_tree():
 
 # ----------------------------------------------
 # Author: Xinjian Zhang
+# modified by: Ruizhe Yang   419198812@qq.com
 # to execute CREATE TABLE SQL statements
 # input
 #       syn_tree: syntax tree node for CREATE TABLE
@@ -511,6 +512,7 @@ def execute_update_set(syn_tree, schema_obj=None):
 
 # ----------------------------------------------
 # Author: Xinjian Zhang
+# modified by: Ruizhe Yang   419198812@qq.com
 # to execute DROP TABLE SQL statements
 # input
 #       syn_tree: syntax tree node for DROP TABLE

@@ -171,12 +171,23 @@ class Schema(object):
         print ("all.sch file has been truncated")
 
     # -----------------------------
+    # modified by: Ruizhe Yang   419198812@qq.com
     # insert a table schema to the schema file
     # input:
     #       tablename: the table to be added
     #       fieldList: the field information list and each element is a tuple(fieldname,fieldtype,fieldlength)
     # -------------------------------
     def appendTable(self, tableName, fieldList):  # it modify the tableNameHead and body of all.sch
+        import uuid
+        import log_db
+
+        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
+
+        # 1. 写入活动事务日志
+        log_db.LogManager.add_active_tx(tx_id)
+        # 2. 写入前像日志（表不存在，前像为None）
+        log_db.LogManager.log_before_image(tx_id, tableName, None)
+
         tableName.strip()
         if len(tableName) == 0 or len(tableName) > 10 or len(fieldList)==0:
             print ('tablename is invalid or field list is invalid')
@@ -214,6 +225,11 @@ class Schema(object):
             self.fileObj.seek(0)
             self.fileObj.write(meta_buf)
             self.fileObj.flush()
+
+            # 3. 写入后像日志（表结构）
+            log_db.LogManager.log_after_image(tx_id, tableName, fieldList)
+            # 4. 写入提交事务日志
+            log_db.LogManager.add_commit_tx(tx_id)
 
     # -------------------------------
     # to determine whether the table named table_name exist, depending on the main memory structures
@@ -263,6 +279,7 @@ class Schema(object):
 
     # ----------------------------------------------
     # Author: Xinjian Zhang
+    # modified by: Ruizhe Yang   419198812@qq.com
     # to delete the schema of a table from the schema file
     # input
     #       table_name: the table to be deleted
@@ -270,10 +287,23 @@ class Schema(object):
     #       True or False
     # ------------------------------------------------
     def delete_table_schema(self, table_name):
-        tmpIndex = -1
+        import uuid
+        import log_db
+
+        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
+
         if isinstance(table_name, str):
             table_name = table_name.encode('utf-8')
         table_name = table_name.strip()
+
+        # 1. 写入活动事务日志
+        log_db.LogManager.add_active_tx(tx_id)
+
+        # 2. 写入前像日志（删除前，记录表结构）
+        before_fields = self.headObj.tableFields.get(table_name, None)
+        log_db.LogManager.log_before_image(tx_id, table_name, before_fields)
+
+        tmpIndex = -1
         for i in range(len(self.headObj.tableNames)):
             tname = self.headObj.tableNames[i][0]
             if isinstance(tname, bytes):
@@ -301,6 +331,11 @@ class Schema(object):
                 self.headObj.offsetOfBody = BODY_BEGIN_INDEX
                 self.headObj.isStored = False
                 self.WriteBuff()
+
+            # 3. 写入后像日志（表已不存在，后像为None）
+            log_db.LogManager.log_after_image(tx_id, table_name, None)
+            # 4. 写入提交事务日志
+            log_db.LogManager.add_commit_tx(tx_id)
             return True
         else:
             print('Cannot find the table!')
