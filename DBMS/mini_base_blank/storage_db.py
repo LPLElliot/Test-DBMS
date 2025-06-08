@@ -57,6 +57,8 @@ import common_db  # 添加这行导入
 # the class can store table data into files
 # functions include insert, delete and update
 # --------------------------------------------
+import log_db
+import uuid
 
 class Storage(object):
     # ------------------------------
@@ -65,20 +67,20 @@ class Storage(object):
     #       tablename
     # -------------------------------------
     def __init__(self, tablename, field_list_from_create_table=None):
-        # print "__init__ of ",Storage.__name__,"begins to execute"
-        tablename.strip()
+        self.tablename = tablename.decode('utf-8') if isinstance(tablename, bytes) else tablename
+        tablename = self.tablename.strip()
         self.record_list = []
         self.record_Position = []
-        if isinstance(tablename,str):
-            tablename=tablename.encode('utf-8')
-        if not os.path.exists(tablename + '.dat'.encode('utf-8')):  # the file corresponding to the table does not exist
-            print(('table file ' + tablename.decode('utf-8') + '.dat does not exists'))
-            self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'wb+')
+        self.data_block_num = 0  # 保证属性总是存在
+
+        if not os.path.exists(tablename + '.dat'):
+            print('table file ' + tablename + '.dat does not exist')
+            self.f_handle = open(tablename + '.dat', 'wb+')
             self.f_handle.close()
             self.open = False
-            print(('table file ' + tablename.decode('utf-8') + '.dat has been created'))
-        self.f_handle = open(tablename + '.dat'.encode('utf-8'), 'rb+')
-        print(f'table file {tablename.decode("utf-8")}.dat has been opened')
+            print('table file ' + tablename + '.dat has been created')
+        self.f_handle = open(tablename + '.dat', 'rb+')
+        print(f'table file {tablename}.dat has been opened')
         self.open = True
         self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
         self.f_handle.seek(0)
@@ -116,7 +118,7 @@ class Storage(object):
                         "please input the number of feilds in table " + tablename.decode('utf-8') + ":"))
                 else:
                     self.num_of_fields = int(input(
-                        "please input the number of feilds in table " + tablename.decode('utf-8') + ":"))
+                        "please input the number of feilds in table " + tablename + ":"))
                 if self.num_of_fields > 0:
                     self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
                     self.block_id = 0
@@ -207,6 +209,13 @@ class Storage(object):
         # example: ['xuyidan','23','123456']
         # step 1 : to check the insert_record is True or False
         tmpRecord = []
+        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
+        # 1. 活动事务登记
+        log_db.LogManager.add_active_tx(tx_id)
+        
+        # 2. 写前像日志（插入前，前像为None）
+        log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), None)
+
         for idx in range(len(self.field_name_list)):
             insert_record[idx] = insert_record[idx].strip()
             if self.field_name_list[idx][1] == 0 or self.field_name_list[idx][1] == 1:
@@ -224,9 +233,16 @@ class Storage(object):
                 except:
                     return False
             insert_record[idx] = ' ' * (self.field_name_list[idx][2] - len(insert_record[idx])) + insert_record[idx]
+        # 4. 写后像日志（插入后，记录内容）
+        log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), tmpRecord)
+
+        # 5. 写提交事务表（提交规则：后像日志必须已写入）
+        log_db.LogManager.add_commit_tx(tx_id)
+        
         # step2: Add tmpRecord to record_list ; change insert_record into inputstr
         inputstr = ''.join(insert_record)
         self.record_list.append(tuple(tmpRecord))
+        
         # Step3: To calculate MaxNum in each Data Blocks
         record_content_len = len(inputstr)
         record_head_len = struct.calcsize('!ii10s')
@@ -274,6 +290,8 @@ class Storage(object):
         struct.pack_into('!' + str(record_content_len) + 's', self.buf, record_head_len, inputstr.encode('utf-8'))
         self.f_handle.write(self.buf.raw)
         self.f_handle.flush()
+        # 4. 事务提交日志
+        log_db.LogManager.add_commit_tx(tx_id)
         return True
 
     # ------------------------------
@@ -334,6 +352,11 @@ class Storage(object):
     #       True or False
     # ------------------------------------------------
     def delete_record_by_field(self, field_name, keyword):
+        import uuid
+        import log_db
+        tx_id = str(uuid.uuid4())
+        log_db.LogManager.add_active_tx(tx_id)
+
         field_index = None
         for idx, field in enumerate(self.field_name_list):
             name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
@@ -343,18 +366,25 @@ class Storage(object):
         if field_index is None:
             print(f"Field '{field_name}' not found.")
             return False
+
         new_records = []
         deleted = False
         for record in self.record_list:
             value = record[field_index]
             value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
             if not deleted and value_str == keyword:
+                # 1. 前像日志（删除前的原始数据）
+                log_db.LogManager.log_before_image(tx_id, self.tablename, list(record))
+                # 2. 后像日志（删除后为None）
+                log_db.LogManager.log_after_image(tx_id, self.tablename, None)
                 deleted = True
                 continue
             new_records.append(record)
         if deleted:
             self.record_list = new_records
             self._rewrite_data_file()
+            # 3. 提交事务日志
+            log_db.LogManager.add_commit_tx(tx_id)
             print("Record deleted.")
             return True
         else:
@@ -373,6 +403,10 @@ class Storage(object):
     # ------------------------------------------------
     def update_record_by_field(self, field_name, old_value, new_value):
         field_index = None
+        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
+        # 1. 活动事务登记
+        log_db.LogManager.add_active_tx(tx_id)
+
         for idx, field in enumerate(self.field_name_list):
             name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
             if name == field_name:
@@ -386,6 +420,8 @@ class Storage(object):
             value = record[field_index]
             value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
             if value_str == old_value:
+                # 2. 写前像日志（更新前的整条记录）
+                log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), list(record))
                 record = list(record)
                 if isinstance(record[field_index], int):
                     try:
@@ -399,6 +435,10 @@ class Storage(object):
                     record[field_index] = new_value
                 self.record_list[i] = tuple(record)
                 updated = True
+                # 4. 写后像日志（更新后的整条记录）
+                log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), tuple(record))
+                # 5. 写提交事务表
+                log_db.LogManager.add_commit_tx(tx_id)
                 break
         if updated:
             self._rewrite_data_file()
