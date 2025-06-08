@@ -1,7 +1,8 @@
 #-----------------------------------------------
 # schema_db.py
 # author: Jingyu Han   hjymail@163.com
-# modified by: Xinjian Zhang   278254081@qq.com
+# modified by: Xinjian Zhang   278254081@qq.com  
+# modified by: Ruizhe Yang   419198812@qq.com  
 #-----------------------------------------------
 # to process the schema data, which is stored in all.sch
 # all.sch are divied into three parts,namely metaHead, tableNameHead and body
@@ -11,6 +12,8 @@
 import ctypes
 import struct
 import head_db # it is main memory structure for the table schema
+import uuid
+import log_db
 
 #the following is metaHead structure,which is 12 bytes
 """
@@ -170,37 +173,39 @@ class Schema(object):
         self.fileObj.flush()
         print ("all.sch file has been truncated")
 
-    # -----------------------------
-    # modified by: Ruizhe Yang   419198812@qq.com
-    # insert a table schema to the schema file
-    # input:
-    #       tablename: the table to be added
+    # ----------------------------------------------
+    # Author: Xinjian Zhang   278254081@qq.com
+    # modified by: Ruizhe Yang   419198812@qq.com 
+    # Insert a table schema to the schema file with logging
+    # Input:
+    #       tableName: the table to be added
     #       fieldList: the field information list and each element is a tuple(fieldname,fieldtype,fieldlength)
-    # -------------------------------
-    def appendTable(self, tableName, fieldList):  # it modify the tableNameHead and body of all.sch
-        import uuid
-        import log_db
-
-        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
-
-        # 1. 写入活动事务日志
-        log_db.LogManager.add_active_tx(tx_id)
-        # 2. 写入前像日志（表不存在，前像为None）
-        log_db.LogManager.log_before_image(tx_id, tableName, None)
-
+    # Output:
+    #       None
+    # ----------------------------------------------
+    def appendTable(self, tableName, fieldList):
+        # Generate transaction ID and start transaction
+        tx_id = str(uuid.uuid4())
+        log_db.LogManager.add_active_tx(tx_id, "CREATE_TABLE")
+        # Log before image (table doesn't exist yet)
+        log_db.LogManager.log_before_image(tx_id, tableName, None, "CREATE_TABLE")
         tableName.strip()
-        if len(tableName) == 0 or len(tableName) > 10 or len(fieldList)==0:
-            print ('tablename is invalid or field list is invalid')
+        if len(tableName) == 0 or len(tableName) > 10 or len(fieldList) == 0:
+            print('tablename is invalid or field list is invalid')
+            return
         else:
             fieldNum = len(fieldList)
             fieldBuff = ctypes.create_string_buffer(MAX_FIELD_LEN * len(fieldList))
             beginIndex = 0
+            # Format field information for logging
+            formatted_fields = []
             for i in range(len(fieldList)):
                 fieldName, fieldType, fieldLength = fieldList[i]
                 if isinstance(fieldName, bytes):
                     fieldName = fieldName.decode('utf-8')
                 fieldName = fieldName.strip()
-                filledFieldName = fieldName.ljust(MAX_FIELD_NAME_LEN) 
+                filledFieldName = fieldName.ljust(MAX_FIELD_NAME_LEN)
+                formatted_fields.append(f"({fieldName}, {fieldType}, {fieldLength})")
                 struct.pack_into('!10sii', fieldBuff, beginIndex, filledFieldName.encode('utf-8'), int(fieldType), int(fieldLength))
                 beginIndex += MAX_FIELD_LEN
             writePos = self.headObj.offsetOfBody
@@ -219,17 +224,17 @@ class Schema(object):
             self.headObj.lenOfTableNum += 1
             self.headObj.offsetOfBody += fieldNum * MAX_FIELD_LEN
             self.headObj.tableNames.append(nameContent)
-            self.headObj.tableFields[tableName.strip()]=fieldList
+            self.headObj.tableFields[tableName.strip()] = fieldList
             meta_buf = ctypes.create_string_buffer(12)
             struct.pack_into('!?ii', meta_buf, 0, self.headObj.isStored, self.headObj.lenOfTableNum, self.headObj.offsetOfBody)
             self.fileObj.seek(0)
             self.fileObj.write(meta_buf)
             self.fileObj.flush()
-
-            # 3. 写入后像日志（表结构）
-            log_db.LogManager.log_after_image(tx_id, tableName, fieldList)
-            # 4. 写入提交事务日志
-            log_db.LogManager.add_commit_tx(tx_id)
+            # Log after image (table created with field information)
+            table_info = f"Table '{tableName.decode('utf-8') if isinstance(tableName, bytes) else tableName}' with fields: {', '.join(formatted_fields)}"
+            log_db.LogManager.log_after_image(tx_id, tableName, table_info, "CREATE_TABLE")
+            # Commit transaction
+            log_db.LogManager.add_commit_tx(tx_id, "CREATE_TABLE")
 
     # -------------------------------
     # to determine whether the table named table_name exist, depending on the main memory structures
@@ -278,8 +283,9 @@ class Schema(object):
         self.fileObj.flush()
 
     # ----------------------------------------------
-    # Author: Xinjian Zhang
-    # modified by: Ruizhe Yang   419198812@qq.com
+    # Author: Xinjian Zhang   278254081@qq.com
+    # modified by: Ruizhe Yang   419198812@qq.com 
+    # modified by: WuShuCheng  2396878284@qq.com
     # to delete the schema of a table from the schema file
     # input
     #       table_name: the table to be deleted
@@ -287,22 +293,9 @@ class Schema(object):
     #       True or False
     # ------------------------------------------------
     def delete_table_schema(self, table_name):
-        import uuid
-        import log_db
-
-        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
-
         if isinstance(table_name, str):
             table_name = table_name.encode('utf-8')
         table_name = table_name.strip()
-
-        # 1. 写入活动事务日志
-        log_db.LogManager.add_active_tx(tx_id)
-
-        # 2. 写入前像日志（删除前，记录表结构）
-        before_fields = self.headObj.tableFields.get(table_name, None)
-        log_db.LogManager.log_before_image(tx_id, table_name, before_fields)
-
         tmpIndex = -1
         for i in range(len(self.headObj.tableNames)):
             tname = self.headObj.tableNames[i][0]
@@ -331,11 +324,6 @@ class Schema(object):
                 self.headObj.offsetOfBody = BODY_BEGIN_INDEX
                 self.headObj.isStored = False
                 self.WriteBuff()
-
-            # 3. 写入后像日志（表已不存在，后像为None）
-            log_db.LogManager.log_after_image(tx_id, table_name, None)
-            # 4. 写入提交事务日志
-            log_db.LogManager.add_commit_tx(tx_id)
             return True
         else:
             print('Cannot find the table!')

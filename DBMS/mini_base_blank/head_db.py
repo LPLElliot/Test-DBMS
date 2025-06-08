@@ -5,6 +5,7 @@
 #--------------------------------------
 # the main memory structure of table schema
 #------------------------------------
+
 class Header(object): 
     #------------------------
     # constructor of the class

@@ -10,31 +10,22 @@ import common_db
 import storage_db
 import schema_db
 import itertools 
-import uuid
-import datetime
-import log_db
 
 class parseNode:
     def __init__(self):
         self.sel_list = []
         self.from_list = []
         self.where_list = []
-    
     def get_sel_list(self):
         return self.sel_list
-    
     def get_from_list(self):
         return self.from_list
-    
     def get_where_list(self):
         return self.where_list
-    
     def update_sel_list(self, sel_list):
         self.sel_list = sel_list
-    
     def update_from_list(self, from_list):
         self.from_list = from_list
-    
     def update_where_list(self, where_list):
         self.where_list = where_list
 
@@ -55,12 +46,10 @@ def extract_sfw_data():
                         if res:
                             return res
             return None
-        
         sfw_node = find_sfw(syn_tree)
         if sfw_node is None:
             print('No SFW node found in syntax tree')
             return [], [], []
-        
         PN = parseNode()
         destruct(sfw_node, PN)
         return PN.get_sel_list(), PN.get_from_list(), PN.get_where_list()
@@ -160,7 +149,6 @@ def execute_logical_tree():
                     return TableIndex, FieldIndex, FieldType, True
                 else:
                     return 0, 0, 0, False
-            
             current_field = []
             current_list =[]
             while (idx >= 0):
@@ -172,8 +160,8 @@ def execute_logical_tree():
                             t1 = t1.decode('utf-8')
                         if isinstance(t2, bytes):
                             t2 = t2.decode('utf-8')
-                        a_1 = storage_db.Storage(t1)
-                        a_2 = storage_db.Storage(t2)
+                        a_1 = storage_db.Storage(t1,debug=False)
+                        a_2 = storage_db.Storage(t2,debug=False)
                         current_list = []
                         tableName_Order = [t1, t2]
                         current_field = [a_1.getfilenamelist(), a_2.getfilenamelist()]
@@ -183,7 +171,7 @@ def execute_logical_tree():
                         t1 = dict_[idx][0]
                         if isinstance(t1, bytes):
                             t1 = t1.decode('utf-8')
-                        a_1 = storage_db.Storage(t1)
+                        a_1 = storage_db.Storage(t1,debug=False)
                         current_list = a_1.getRecord()
                         tableName_Order = [t1]
                         current_field = [a_1.getfilenamelist()]
@@ -191,7 +179,7 @@ def execute_logical_tree():
                     t2 = dict_[idx][1]
                     if isinstance(t2, bytes):
                         t2 = t2.decode('utf-8')
-                    a_2 = storage_db.Storage(t2)
+                    a_2 = storage_db.Storage(t2,debug=False)
                     tableName_Order.append(t2)
                     current_field.append(a_2.getfilenamelist())
                     tmp_List = current_list[:]
@@ -263,7 +251,6 @@ def execute_logical_tree():
                             )
                         return outPutField, current_list, True
                 idx -= 1
-        
         outPutField, current_list, isRight = excute_tree()
         if isRight:
             print('-' * (len(outPutField) * 12))
@@ -300,7 +287,7 @@ def construct_logical_tree():
         print('there is no data in the syntax tree in the construct_logical_tree')
 
 # ----------------------------------------------
-# Author: Xinjian Zhang
+# Author: Xinjian Zhang   278254081@qq.com
 # modified by: Ruizhe Yang   419198812@qq.com
 # to execute CREATE TABLE SQL statements
 # input
@@ -310,26 +297,16 @@ def construct_logical_tree():
 #       None (creates table in schema and storage)
 # ------------------------------------------------
 def execute_create_table(syn_tree, schema_obj=None):
-    print("Executing CREATE TABLE statement...")
     if syn_tree.value == 'CREATE_TABLE':
         table_name = syn_tree.var['table_name']
         fields = syn_tree.var['fields']
         if schema_obj is None:
-            import schema_db
             schema_obj = schema_db.Schema()
         table_name_bytes = table_name.encode('utf-8')
         if schema_obj.find_table(table_name_bytes):
             print(f"Table '{table_name}' already exists!")
             return
         try:
-            # 1. 生成事务ID并登记活动事务
-            tx_id = str(uuid.uuid4())
-            print("写入活动事务日志")
-            log_db.LogManager.add_active_tx(tx_id)
-            # 2. 前像日志（表不存在，前像为None）
-            print("写入前像日志")
-            log_db.LogManager.log_before_image(tx_id, table_name, None)
-            # 3. 创建表（写schema和数据文件）
             field_list = []
             for field_def in fields:
                 field_name = field_def['name']
@@ -337,19 +314,14 @@ def execute_create_table(syn_tree, schema_obj=None):
                 length = field_def['length']
                 field_name_padded = (' ' * (10 - len(field_name)) + field_name) if len(field_name) < 10 else field_name[:10]
                 field_list.append((field_name_padded.encode('utf-8'), type_code, length))
+            storage_db.Storage(table_name_bytes, field_list_from_create_table=fields, debug=False)
             schema_obj.appendTable(table_name_bytes, field_list)
-            import storage_db
-            storage_obj = storage_db.Storage(table_name_bytes, field_list_from_create_table=fields)
-            # 4. 后像日志（表结构）
-            log_db.LogManager.log_after_image(tx_id, table_name, fields)
-            # 5. 提交事务日志
-            log_db.LogManager.add_commit_tx(tx_id)
             print(f"Table '{table_name}' created successfully!")
         except Exception as e:
             print(f"Error creating table: {e}")
 
 # ----------------------------------------------
-# Author: Xinjian Zhang
+# Author: Xinjian Zhang   278254081@qq.com
 # to execute INSERT INTO SQL statements
 # input
 #       syn_tree: syntax tree node for INSERT INTO
@@ -357,14 +329,13 @@ def execute_create_table(syn_tree, schema_obj=None):
 # output
 #       None (inserts record into table)
 # ------------------------------------------------
-def execute_insert_into(syn_tree, schema_obj=None):
+def execute_insert_into(syn_tree):
     if syn_tree.value == 'INSERT_INTO':
         table_name = syn_tree.var['table_name']
         values = syn_tree.var['values']
-        
         try:
             table_name_bytes = table_name.encode('utf-8')
-            storage_obj = storage_db.Storage(table_name_bytes)
+            storage_obj = storage_db.Storage(table_name_bytes, debug=False)
             if storage_obj.insert_record(values):
                 print(f"Record inserted into '{table_name}' successfully!")
             else:
@@ -373,7 +344,7 @@ def execute_insert_into(syn_tree, schema_obj=None):
             print(f"Error inserting record: {e}")
 
 # ----------------------------------------------
-# Author: Xinjian Zhang
+# Author: Xinjian Zhang   278254081@qq.com
 # to execute DELETE FROM SQL statements
 # input
 #       syn_tree: syntax tree node for DELETE FROM
@@ -381,15 +352,13 @@ def execute_insert_into(syn_tree, schema_obj=None):
 # output
 #       None (deletes records from table)
 # ------------------------------------------------
-def execute_delete_from(syn_tree, schema_obj=None):
+def execute_delete_from(syn_tree):
     if syn_tree.value == 'DELETE_FROM':
         table_name = syn_tree.var['table_name']
         condition = syn_tree.var.get('condition')
-        
         try:
             table_name_bytes = table_name.encode('utf-8')
-            storage_obj = storage_db.Storage(table_name_bytes)
-            
+            storage_obj = storage_db.Storage(table_name_bytes, debug=False)
             if condition is None:
                 # Delete all records
                 storage_obj.record_list = []
@@ -399,18 +368,16 @@ def execute_delete_from(syn_tree, schema_obj=None):
                 # Delete based on condition
                 field_name = condition.children[0].children[0]  # TCNAME
                 value = condition.children[2].children[0]       # CONSTANT
-                
                 # Remove quotes from value if present
                 if isinstance(value, str) and value.startswith("'") and value.endswith("'"):
                     value = value[1:-1]
-                
                 storage_obj.delete_record_by_field(field_name, value)
                 print(f"Records deleted from '{table_name}' where {field_name}='{value}'!")
         except Exception as e:
             print(f"Error deleting from table: {e}")
 
 # ----------------------------------------------
-# Author: Xinjian Zhang
+# Author: Xinjian Zhang   278254081@qq.com
 # to execute UPDATE SET SQL statements
 # input
 #       syn_tree: syntax tree node for UPDATE SET
@@ -418,53 +385,44 @@ def execute_delete_from(syn_tree, schema_obj=None):
 # output
 #       None (updates records in table)
 # ------------------------------------------------
-def execute_update_set(syn_tree, schema_obj=None):
+def execute_update_set(syn_tree):
     if syn_tree.value == 'UPDATE_SET':
         table_name = syn_tree.var['table_name']
         assignments = syn_tree.var['assignments']
         condition = syn_tree.var.get('condition')
-        
         try:
             table_name_bytes = table_name.encode('utf-8')
-            storage_obj = storage_db.Storage(table_name_bytes)
-            
+            storage_obj = storage_db.Storage(table_name_bytes, debug=False)
             # Process each assignment
             for assignment in assignments:
                 update_field = assignment['column']
                 new_value = assignment['value']
-                
                 # Remove quotes from new_value if present
                 if isinstance(new_value, str) and new_value.startswith("'") and new_value.endswith("'"):
                     new_value = new_value[1:-1]
-                
                 if condition:
                     # Update based on condition
                     condition_field = condition.children[0].children[0]  # TCNAME
                     condition_value = condition.children[2].children[0]  # CONSTANT
-                    
                     # Remove quotes from condition_value if present
                     if isinstance(condition_value, str) and condition_value.startswith("'") and condition_value.endswith("'"):
                         condition_value = condition_value[1:-1]
-                    
                     # Handle case where update field differs from condition field
                     if update_field == condition_field:
                         # If update field and condition field are the same, use existing method
-                        storage_obj.update_record_by_field(condition_field, condition_value, new_value)
+                        storage_obj.update_record_by_field(condition_field, condition_value, update_field, new_value)
                     else:
                         # Custom update logic for different fields
                         updated = False
-                        
                         # Find field indices
                         condition_field_index = None
                         update_field_index = None
-                        
                         for idx, field in enumerate(storage_obj.field_name_list):
                             field_name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
                             if field_name == condition_field:
                                 condition_field_index = idx
                             if field_name == update_field:
                                 update_field_index = idx
-                        
                         if condition_field_index is not None and update_field_index is not None:
                             # Iterate through records to find matching condition
                             for i, record in enumerate(storage_obj.record_list):
@@ -473,15 +431,12 @@ def execute_update_set(syn_tree, schema_obj=None):
                                     record_value = record_value.decode('utf-8').strip()
                                 else:
                                     record_value = str(record_value).strip()
-                                
                                 if record_value == condition_value:
                                     # Found matching record, update target field
                                     record_list = list(record)
-                                    
                                     # Handle field type for new value
                                     field_type = storage_obj.field_name_list[update_field_index][1]
                                     field_length = storage_obj.field_name_list[update_field_index][2]
-                                    
                                     if field_type == 0 or field_type == 1:  # String types
                                         # Ensure new value fits field length
                                         padded_value = new_value.ljust(field_length)[:field_length]
@@ -490,12 +445,10 @@ def execute_update_set(syn_tree, schema_obj=None):
                                         record_list[update_field_index] = int(new_value)
                                     elif field_type == 3:  # Boolean type
                                         record_list[update_field_index] = bool(new_value)
-                                    
                                     storage_obj.record_list[i] = tuple(record_list)
                                     updated = True
                                     print(f"Updated record: {condition_field}='{condition_value}' -> {update_field}='{new_value}'")
                                     break
-                            
                             if updated:
                                 storage_obj._rewrite_data_file()
                             else:
@@ -504,14 +457,13 @@ def execute_update_set(syn_tree, schema_obj=None):
                             print(f"Field not found: {condition_field} or {update_field}")
                 else:
                     # Update all records (no WHERE condition)
-                    print("Update without WHERE clause not implemented for safety!")
-                
+                    print("Update without WHERE clause not implemented for safety!")               
             print(f"Records updated in '{table_name}'!")
         except Exception as e:
             print(f"Error updating table: {e}")
 
 # ----------------------------------------------
-# Author: Xinjian Zhang
+# Author: Xinjian Zhang   278254081@qq.com
 # modified by: Ruizhe Yang   419198812@qq.com
 # to execute DROP TABLE SQL statements
 # input
@@ -524,34 +476,21 @@ def execute_drop_table(syn_tree, schema_obj=None):
     if syn_tree.value == 'DROP_TABLE':
         table_name = syn_tree.var['table_name']
         if schema_obj is None:
-            import schema_db
             schema_obj = schema_db.Schema()
         table_name_bytes = table_name.encode('utf-8')
         if not schema_obj.find_table(table_name_bytes):
             print(f"Table '{table_name}' does not exist!")
             return
         try:
-            # 1. 生成事务ID并登记活动事务
-            tx_id = str(uuid.uuid4())
-            log_db.LogManager.add_active_tx(tx_id)
-            # 2. 前像日志（删除前，记录表结构）
-            fields = schema_obj.headObj.tableFields.get(table_name_bytes, None)
-            log_db.LogManager.log_before_image(tx_id, table_name, fields)
-            # 3. 删除表（schema和数据文件）
             schema_obj.delete_table_schema(table_name_bytes)
-            import storage_db
-            storage_obj = storage_db.Storage(table_name_bytes)
+            storage_obj = storage_db.Storage(table_name_bytes, debug=False)
             storage_obj.delete_table_data(table_name_bytes)
-            # 4. 后像日志（表已不存在，后像为None）
-            log_db.LogManager.log_after_image(tx_id, table_name, None)
-            # 5. 提交事务日志
-            log_db.LogManager.add_commit_tx(tx_id)
             print(f"Table '{table_name}' dropped successfully!")
         except Exception as e:
             print(f"Error dropping table: {e}")
 
 # ----------------------------------------------
-# Author: Xinjian Zhang
+# Author: Xinjian Zhang   278254081@qq.com
 # unified entry point for executing SQL statements
 # input
 #       schema_obj: schema object to manage table definitions
@@ -559,23 +498,21 @@ def execute_drop_table(syn_tree, schema_obj=None):
 #       None (executes appropriate SQL operation)
 # ------------------------------------------------
 def execute_sql_statement(schema_obj=None):
-    """Unified entry point for executing SQL statements"""
     syn_tree = common_db.global_syn_tree
     if not syn_tree:
         print("No syntax tree to execute!")
         return
-    
     if syn_tree.value == 'SFW':
         construct_logical_tree()
         execute_logical_tree()
     elif syn_tree.value == 'CREATE_TABLE':
-        execute_create_table(syn_tree, schema_obj)
+        execute_create_table(syn_tree)
     elif syn_tree.value == 'INSERT_INTO':
-        execute_insert_into(syn_tree, schema_obj)
+        execute_insert_into(syn_tree)
     elif syn_tree.value == 'DELETE_FROM':
-        execute_delete_from(syn_tree, schema_obj)
+        execute_delete_from(syn_tree)
     elif syn_tree.value == 'UPDATE_SET':
-        execute_update_set(syn_tree, schema_obj)
+        execute_update_set(syn_tree)
     elif syn_tree.value == 'DROP_TABLE':
         execute_drop_table(syn_tree, schema_obj)
     else:

@@ -5,4 +5,3 @@
 （4）数据管理模块：storage_db.py -> 表数据管理的代码
 （5）索引管理模块：index_db.py -> 索引的代码
 （6）查询分析器模块：query_plan_db.py, parser_db.py, lex_db.py -> 查询分析器的代码
-（7）简易存储演示模块：mega_storage.py -> 用于演示原理的简易文本存储实现

@@ -2,6 +2,8 @@
 # storage_db.py
 # Author: Jingyu Han  hjymail@163.com
 # modified by: Xinjian Zhang   278254081@qq.com
+# modified by: WuShuCheng  2396878284@qq.com
+# modified by: Ruizhe Yang   419198812@qq.com
 # -----------------------------------------------------------------------
 # the module is to store tables in files
 # Each table is stored in a separate file with the suffix ".dat".
@@ -52,13 +54,13 @@ from common_db import BLOCK_SIZE
 import struct
 import os
 import ctypes
-import common_db  # 添加这行导入
+import common_db 
+import log_db
+import uuid
 # --------------------------------------------
 # the class can store table data into files
 # functions include insert, delete and update
 # --------------------------------------------
-import log_db
-import uuid
 
 class Storage(object):
     # ------------------------------
@@ -66,21 +68,27 @@ class Storage(object):
     # input:
     #       tablename
     # -------------------------------------
-    def __init__(self, tablename, field_list_from_create_table=None):
+    def __init__(self, tablename, field_list_from_create_table=None, debug=False):
         self.tablename = tablename.decode('utf-8') if isinstance(tablename, bytes) else tablename
         tablename = self.tablename.strip()
         self.record_list = []
         self.record_Position = []
-        self.data_block_num = 0  # 保证属性总是存在
-
+        self.data_block_num = 0  
+        self.debug = debug
+        
         if not os.path.exists(tablename + '.dat'):
-            print('table file ' + tablename + '.dat does not exist')
+            if debug:
+                print('table file ' + tablename + '.dat does not exist')
             self.f_handle = open(tablename + '.dat', 'wb+')
             self.f_handle.close()
             self.open = False
-            print('table file ' + tablename + '.dat has been created')
+            if debug:
+                print('table file ' + tablename + '.dat has been created')
+        
         self.f_handle = open(tablename + '.dat', 'rb+')
-        print(f'table file {tablename}.dat has been opened')
+        if debug:
+            print(f'table file {tablename}.dat has been opened')
+        
         self.open = True
         self.dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
         self.f_handle.seek(0)
@@ -89,6 +97,7 @@ class Storage(object):
         my_len = len(self.dir_buf)
         self.field_name_list = []
         beginIndex = 0
+        
         if my_len == 0:  # there is no data in the block 0, we should write meta data into the block 0
             if field_list_from_create_table:
                 self.num_of_fields = len(field_list_from_create_table)
@@ -148,16 +157,19 @@ class Storage(object):
                     self.f_handle.flush()
         else:  # there is something in the file
             self.block_id, self.data_block_num, self.num_of_fields = struct.unpack_from('!iii', self.dir_buf, 0)
-            print('number of fields is ', self.num_of_fields)
-            print('data_block_num', self.data_block_num)
+            if debug:
+                print('number of fields is ', self.num_of_fields)
+                print('data_block_num', self.data_block_num)
             beginIndex = struct.calcsize('!iii')
-            # the followins is to read field name, field type and field length into main memory structures
+            # the following is to read field name, field type and field length into main memory structures
             for i in range(self.num_of_fields):
                 field_name, field_type, field_length = struct.unpack_from('!10sii', self.dir_buf,beginIndex + i * struct.calcsize('!10sii'))  # i means no memory alignment
                 temp_tuple = (field_name, field_type, field_length)
                 self.field_name_list.append(temp_tuple)
-                print(f"the {i+1}th field information (field name, field type, field length) is "
-          f"('{field_name.decode('utf-8').strip()}', {field_type}, {field_length})")
+                if debug:
+                    print(f"the {i+1}th field information (field name, field type, field length) is "
+                          f"('{field_name.decode('utf-8').strip()}', {field_type}, {field_length})")
+    
         # print self.field_name_list
         record_head_len = struct.calcsize('!ii10s')
         record_content_len = sum(map(lambda x: x[2], self.field_name_list))
@@ -167,11 +179,11 @@ class Storage(object):
             self.f_handle.seek(BLOCK_SIZE * Flag)
             self.active_data_buf = self.f_handle.read(BLOCK_SIZE)
             if len(self.active_data_buf) < 8:
-                print(f"Warning: Data block {Flag} is empty or incomplete, skipping.")
                 Flag += 1
                 continue
             self.block_id, self.Number_of_Records = struct.unpack_from('!ii', self.active_data_buf, 0)
-            print('Block_ID=%s,   Contains %s data' % (self.block_id, self.Number_of_Records))
+            if debug:
+                print('Block_ID=%s,   Contains %s data' % (self.block_id, self.Number_of_Records))
             # There exists record
             if self.Number_of_Records > 0:
                 for i in range(self.Number_of_Records):
@@ -200,56 +212,62 @@ class Storage(object):
     def getRecord(self):
         return self.record_list
 
-    # --------------------------------
+    # ------------------------------
+    # Author:  Xinjian Zhang   278254081@qq.com
     # modified by: Ruizhe Yang   419198812@qq.com
-    # to insert a record into table
-    # param insert_record: list
-    # return: True or False
-    # -------------------------------
+    # Insert a record into table with logging
+    # Input:
+    #       insert_record: list of field values
+    # Output:
+    #       bool: True if successful, False otherwise
+    # ----------------------------------------------
     def insert_record(self, insert_record):
-        # example: ['xuyidan','23','123456']
-        # step 1 : to check the insert_record is True or False
+        # Generate transaction ID and start transaction
+        tx_id = str(uuid.uuid4())
+        log_db.LogManager.add_active_tx(tx_id, "INSERT")
+        # Log before image (no record exists yet)
+        log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), None, "INSERT")
+        # Step 1: Validate and process insert_record
         tmpRecord = []
-        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
-        # 1. 活动事务登记
-        log_db.LogManager.add_active_tx(tx_id)
-        
-        # 2. 写前像日志（插入前，前像为None）
-        log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), None)
-
         for idx in range(len(self.field_name_list)):
             insert_record[idx] = insert_record[idx].strip()
-            if self.field_name_list[idx][1] == 0 or self.field_name_list[idx][1] == 1:
+            if self.field_name_list[idx][1] == 0 or self.field_name_list[idx][1] == 1:  # String types
                 if len(insert_record[idx]) > self.field_name_list[idx][2]:
+                    print(f"Field value too long for field {idx}")
                     return False
                 tmpRecord.append(insert_record[idx])
-            if self.field_name_list[idx][1] == 2:
+            elif self.field_name_list[idx][1] == 2:  # Integer type
                 try:
                     tmpRecord.append(int(insert_record[idx]))
                 except:
+                    print(f"Invalid integer value for field {idx}")
                     return False
-            if self.field_name_list[idx][1] == 3:
+            elif self.field_name_list[idx][1] == 3:  # Boolean type
                 try:
                     tmpRecord.append(bool(insert_record[idx]))
                 except:
+                    print(f"Invalid boolean value for field {idx}")
                     return False
-            insert_record[idx] = ' ' * (self.field_name_list[idx][2] - len(insert_record[idx])) + insert_record[idx]
-        # 4. 写后像日志（插入后，记录内容）
-        log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), tmpRecord)
-
-        # 5. 写提交事务表（提交规则：后像日志必须已写入）
-        log_db.LogManager.add_commit_tx(tx_id)
-        
-        # step2: Add tmpRecord to record_list ; change insert_record into inputstr
+            # Pad string fields if necessary
+            if len(insert_record[idx]) < self.field_name_list[idx][2]:
+                insert_record[idx] = ' ' * (self.field_name_list[idx][2] - len(insert_record[idx])) + insert_record[idx]
+        # Format record for logging
+        formatted_record = []
+        for i, field in enumerate(self.field_name_list):
+            field_name = field[0].decode('utf-8') if isinstance(field[0], bytes) else field[0]
+            field_value = tmpRecord[i]
+            if isinstance(field_value, bytes):
+                field_value = field_value.decode('utf-8', 'ignore').strip()
+            formatted_record.append(f"{field_name.strip()}: {field_value}")
+        # Step 2: Add tmpRecord to record_list and prepare for writing
         inputstr = ''.join(insert_record)
         self.record_list.append(tuple(tmpRecord))
-        
-        # Step3: To calculate MaxNum in each Data Blocks
+        # Step 3: Calculate record positioning
         record_content_len = len(inputstr)
         record_head_len = struct.calcsize('!ii10s')
         record_len = record_head_len + record_content_len
-        MAX_RECORD_NUM = (BLOCK_SIZE - struct.calcsize('!i') - struct.calcsize('!ii')) / (record_len + struct.calcsize('!i'))
-        # Step4: To calculate new record Position
+        MAX_RECORD_NUM = int((BLOCK_SIZE - struct.calcsize('!i') - struct.calcsize('!ii')) / (record_len + struct.calcsize('!i')))
+        # Step 4: Calculate new record position
         if not len(self.record_Position):
             self.data_block_num += 1
             self.record_Position.append((1, 0))
@@ -261,39 +279,46 @@ class Storage(object):
             else:
                 self.record_Position.append((last_Position[0], last_Position[1] + 1))
         last_Position = self.record_Position[-1]
-        # Step5: Write new record into file xxx.dat
-        # update data_block_num
-        self.f_handle.seek(0)
-        self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
-        struct.pack_into('!ii', self.buf, 0, 0, self.data_block_num)
-        self.f_handle.write(self.buf)
-        self.f_handle.flush()
-        # update data block head
-        self.f_handle.seek(BLOCK_SIZE * last_Position[0])
-        self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
-        struct.pack_into('!ii', self.buf, 0, last_Position[0], last_Position[1] + 1)
-        self.f_handle.write(self.buf)
-        self.f_handle.flush()
-        # update data offset
-        offset = struct.calcsize('!ii') + last_Position[1] * struct.calcsize('!i')
-        beginIndex = BLOCK_SIZE - (last_Position[1] + 1) * record_len
-        self.f_handle.seek(BLOCK_SIZE * last_Position[0] + offset)
-        self.buf = ctypes.create_string_buffer(struct.calcsize('!i'))
-        struct.pack_into('!i', self.buf, 0, beginIndex)
-        self.f_handle.write(self.buf)
-        self.f_handle.flush()
-        # update data
-        record_schema_address = struct.calcsize('!iii')
-        update_time = datetime.datetime.now().strftime('%Y-%m-%d')  # update time
-        self.f_handle.seek(BLOCK_SIZE * last_Position[0] + beginIndex)
-        self.buf = ctypes.create_string_buffer(record_len)
-        struct.pack_into('!ii10s', self.buf, 0, record_schema_address, record_content_len, update_time.encode('utf-8'))
-        struct.pack_into('!' + str(record_content_len) + 's', self.buf, record_head_len, inputstr.encode('utf-8'))
-        self.f_handle.write(self.buf.raw)
-        self.f_handle.flush()
-        # 4. 事务提交日志
-        log_db.LogManager.add_commit_tx(tx_id)
-        return True
+        # Step 5: Write new record into file
+        try:
+            # Update data_block_num
+            self.f_handle.seek(0)
+            self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
+            struct.pack_into('!ii', self.buf, 0, 0, self.data_block_num)
+            self.f_handle.write(self.buf)
+            self.f_handle.flush()
+            # Update data block head
+            self.f_handle.seek(BLOCK_SIZE * last_Position[0])
+            self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
+            struct.pack_into('!ii', self.buf, 0, last_Position[0], last_Position[1] + 1)
+            self.f_handle.write(self.buf)
+            self.f_handle.flush()
+            # Update data offset
+            offset = struct.calcsize('!ii') + last_Position[1] * struct.calcsize('!i')
+            beginIndex = BLOCK_SIZE - (last_Position[1] + 1) * record_len
+            self.f_handle.seek(BLOCK_SIZE * last_Position[0] + offset)
+            self.buf = ctypes.create_string_buffer(struct.calcsize('!i'))
+            struct.pack_into('!i', self.buf, 0, beginIndex)
+            self.f_handle.write(self.buf)
+            self.f_handle.flush()
+            # Update data
+            record_schema_address = struct.calcsize('!iii')
+            update_time = datetime.datetime.now().strftime('%Y-%m-%d')
+            self.f_handle.seek(BLOCK_SIZE * last_Position[0] + beginIndex)
+            self.buf = ctypes.create_string_buffer(record_len)
+            struct.pack_into('!ii10s', self.buf, 0, record_schema_address, record_content_len, update_time.encode('utf-8'))
+            struct.pack_into('!' + str(record_content_len) + 's', self.buf, record_head_len, inputstr.encode('utf-8'))
+            self.f_handle.write(self.buf.raw)
+            self.f_handle.flush()
+            # Log after image (record inserted)
+            record_info = f"Record inserted: [{', '.join(formatted_record)}]"
+            log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), record_info, "INSERT")
+            # Commit transaction
+            log_db.LogManager.add_commit_tx(tx_id, "INSERT")
+            return True
+        except Exception as e:
+            print(f"Error during record insertion: {e}")
+            return False
 
     # ------------------------------
     # show the data structure and its data
@@ -323,10 +348,15 @@ class Storage(object):
             os.remove(tableName + '.dat'.encode('utf-8'))
         return True
 
+
+    # ----------------------------------------------
+    # to get list of field names for display purposes
+    # ------------------------------------------------
+    def getfilenamelist(self):
+        return self.field_name_list
+
     # ------------------------------
     # get the list of field information, each element of which is (field name, field type, field length)
-    # input:
-    #       
     # -------------------------------------
     def getFieldList(self):
         return self.field_name_list
@@ -354,11 +384,6 @@ class Storage(object):
     #       True or False
     # ------------------------------------------------
     def delete_record_by_field(self, field_name, keyword):
-        import uuid
-        import log_db
-        tx_id = str(uuid.uuid4())
-        log_db.LogManager.add_active_tx(tx_id)
-
         field_index = None
         for idx, field in enumerate(self.field_name_list):
             name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
@@ -368,25 +393,18 @@ class Storage(object):
         if field_index is None:
             print(f"Field '{field_name}' not found.")
             return False
-
         new_records = []
         deleted = False
         for record in self.record_list:
             value = record[field_index]
             value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
             if not deleted and value_str == keyword:
-                # 1. 前像日志（删除前的原始数据）
-                log_db.LogManager.log_before_image(tx_id, self.tablename, list(record))
-                # 2. 后像日志（删除后为None）
-                log_db.LogManager.log_after_image(tx_id, self.tablename, None)
                 deleted = True
                 continue
             new_records.append(record)
         if deleted:
             self.record_list = new_records
             self._rewrite_data_file()
-            # 3. 提交事务日志
-            log_db.LogManager.add_commit_tx(tx_id)
             print("Record deleted.")
             return True
         else:
@@ -395,57 +413,91 @@ class Storage(object):
 
     # ----------------------------------------------
     # Author: Xinjian Zhang
-    # modified by: Ruizhe Yang   419198812@qq.com
-    # to update the first record matching a field value and rewrite the data file
-    # input
-    #       field_name: the field to match
-    #       old_value: the value to be replaced
-    #       new_value: the new value
-    # output
-    #       True or False
-    # ------------------------------------------------
-    def update_record_by_field(self, field_name, old_value, new_value):
-        field_index = None
-        tx_id = str(uuid.uuid4())  # 生成唯一事务ID
-        # 1. 活动事务登记
-        log_db.LogManager.add_active_tx(tx_id)
-
+    # Update records by field criteria with enhanced logging
+    # Input:
+    #       search_field: field name to search by
+    #       search_value: value to search for
+    #       update_field: field name to update (if different from search_field)
+    #       new_value: new value to set
+    # Output:
+    #       bool: whether update is successful
+    # ----------------------------------------------
+    def update_record_by_field(self, search_field, search_value, update_field=None, new_value=None):
+        # Handle legacy interface (3 parameters)
+        if update_field is None and new_value is None:
+            # Legacy call: update_record_by_field(field_name, old_value, new_value)
+            update_field = search_field
+            new_value = search_value
+            search_value = search_field  # This doesn't make sense, but for compatibility
+        # Generate transaction ID and start transaction
+        tx_id = str(uuid.uuid4())
+        log_db.LogManager.add_active_tx(tx_id, "UPDATE")
+        # Find field indices
+        search_field_index = None
+        update_field_index = None
         for idx, field in enumerate(self.field_name_list):
-            name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
-            if name == field_name:
-                field_index = idx
-                break
-        if field_index is None:
-            print(f"Field '{field_name}' not found.")
+            field_name = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
+            if field_name == search_field:
+                search_field_index = idx
+            if field_name == update_field:
+                update_field_index = idx
+        if search_field_index is None:
+            print(f"Search field '{search_field}' not found.")
+            return False
+        if update_field_index is None:
+            print(f"Update field '{update_field}' not found.")
             return False
         updated = False
+        updated_records = []
         for i, record in enumerate(self.record_list):
-            value = record[field_index]
-            value_str = value.decode('utf-8').strip() if isinstance(value, bytes) else str(value).strip()
-            if value_str == old_value:
-                # 2. 写前像日志（更新前的整条记录）
-                log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), list(record))
-                record = list(record)
-                if isinstance(record[field_index], int):
+            # Check if record matches search criteria
+            search_value_in_record = record[search_field_index]
+            search_value_str = search_value_in_record.decode('utf-8').strip() if isinstance(search_value_in_record, bytes) else str(search_value_in_record).strip()
+            if search_value_str == search_value:
+                # Log before image
+                old_record_formatted = []
+                for j, field in enumerate(self.field_name_list):
+                    field_name = field[0].decode('utf-8') if isinstance(field[0], bytes) else field[0]
+                    field_value = record[j]
+                    if isinstance(field_value, bytes):
+                        field_value = field_value.decode('utf-8', 'ignore').strip()
+                    old_record_formatted.append(f"{field_name.strip()}: {field_value}")
+                old_record_info = f"Record before update: [{', '.join(old_record_formatted)}]"
+                log_db.LogManager.log_before_image(tx_id, getattr(self, "tablename", "unknown"), old_record_info, "UPDATE")
+                # Update the record
+                record_list = list(record)
+                field_type = self.field_name_list[update_field_index][1]
+                if field_type == 0 or field_type == 1:  # String types
+                    field_length = self.field_name_list[update_field_index][2]
+                    padded_value = new_value.ljust(field_length)[:field_length]
+                    record_list[update_field_index] = padded_value.encode('utf-8') if isinstance(padded_value, str) else padded_value
+                elif field_type == 2:  # Integer type
                     try:
-                        record[field_index] = int(new_value)
-                    except:
-                        print("Invalid int value.")
+                        record_list[update_field_index] = int(new_value)
+                    except ValueError:
+                        print("Invalid integer value.")
                         return False
-                elif isinstance(record[field_index], bool):
-                    record[field_index] = bool(new_value)
-                else:
-                    record[field_index] = new_value
-                self.record_list[i] = tuple(record)
+                elif field_type == 3:  # Boolean type
+                    record_list[update_field_index] = bool(new_value)
+                self.record_list[i] = tuple(record_list)
                 updated = True
-                # 4. 写后像日志（更新后的整条记录）
-                log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), tuple(record))
-                # 5. 写提交事务表
-                log_db.LogManager.add_commit_tx(tx_id)
-                break
+                # Log after image
+                new_record_formatted = []
+                for j, field in enumerate(self.field_name_list):
+                    field_name = field[0].decode('utf-8') if isinstance(field[0], bytes) else field[0]
+                    field_value = record_list[j]
+                    if isinstance(field_value, bytes):
+                        field_value = field_value.decode('utf-8', 'ignore').strip()
+                    new_record_formatted.append(f"{field_name.strip()}: {field_value}")
+                new_record_info = f"Record after update: [{', '.join(new_record_formatted)}]"
+                log_db.LogManager.log_after_image(tx_id, getattr(self, "tablename", "unknown"), new_record_info, "UPDATE")
+                updated_records.append((old_record_info, new_record_info))
+                break  # Only update first matching record
         if updated:
             self._rewrite_data_file()
-            print("Record updated.")
+            # Commit transaction
+            log_db.LogManager.add_commit_tx(tx_id, "UPDATE")
+            print("Record updated successfully.")
             return True
         else:
             print("No matching record found.")
@@ -481,7 +533,6 @@ class Storage(object):
             record_head_len = struct.calcsize('!ii10s')
             record_content_len = sum(map(lambda x: x[2], self.field_name_list))
             record_len = record_head_len + record_content_len
-            MAX_RECORD_NUM = int((BLOCK_SIZE - struct.calcsize('!i') - struct.calcsize('!ii')) / (record_len + struct.calcsize('!i')))
             data_buf = ctypes.create_string_buffer(BLOCK_SIZE)
             struct.pack_into('!ii', data_buf, 0, data_block_num, num_records)
             for i, record in enumerate(self.record_list):
@@ -527,107 +578,30 @@ class Storage(object):
                 beginIndex += struct.calcsize('!10sii')
             self.f_handle.write(dir_buf)
             self.f_handle.flush()
-
-    # ----------------------------------------------
-    # Author: Xinjian Zhang
-    # to get list of field names for display purposes
-    # input
-    #       None
-    # output
-    #       field_name_list: list of field information tuples
-    # ------------------------------------------------
-    def getfilenamelist(self):
-        return self.field_name_list
-
-    def read_record(self, offset):
-        """读取记录"""
-        try:
-            record = []
-            field_list = self.getFieldList()
-            
-            for field in field_list:
-                field_len = field[2]
-                field_data = self.f_handle.read(field_len)
-                record.append(field_data)
-                
-            return record
-        except Exception as e:
-            print(f"读取记录出错: {str(e)}")
-            return None
-
+    
     def find_record_by_field(self, field_name, search_value):
-        """按字段查找记录"""
-        found_records = []
-        field_list = self.getFieldList()
-        
-        # 获取字段索引和类型
-        field_index = -1
-        field_type = None
-        if isinstance(field_name, str):
-            field_name = field_name.encode('utf-8')
-        
-        for i, field in enumerate(field_list):
-            if field[0].strip() == field_name.strip():
-                field_index = i
-                field_type = field[1]
+        results = []
+        # Find field index
+        field_index = None
+        for idx, field in enumerate(self.field_name_list):
+            field_name_in_table = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
+            if field_name_in_table == field_name:
+                field_index = idx
                 break
+        if field_index is None:
+            return results
         
-        try:
-            # 准备搜索值
-            if field_type == 2:  # 整数类型
-                search_int = int(search_value)
-                search_value = struct.pack('!q', search_int)
-                print(f"\n搜索条件:")
-                print(f"字段: {field_name.decode('utf-8')}")
-                print(f"搜索整数值: {search_int}")
+        # Sequential scan through all records
+        for record in self.record_list:
+            field_value = record[field_index]
+            
+            # Convert field value to string for comparison
+            if isinstance(field_value, bytes):
+                field_value_str = field_value.decode('utf-8', 'ignore').strip()
             else:
-                if isinstance(search_value, str):
-                    search_value = search_value.encode('utf-8')
-                print(f"\n搜索条件:")
-                print(f"字段: {field_name.decode('utf-8')}")
-                print(f"搜索值: {search_value.decode('utf-8')}")
+                field_value_str = str(field_value).strip()
+            
+            if field_value_str == search_value.strip():
+                results.append(record)
         
-            # 读取数据块
-            for block_id in range(1, self.data_block_num + 1):
-                self.f_handle.seek(block_id * common_db.BLOCK_SIZE)
-                block = self.f_handle.read(common_db.BLOCK_SIZE)
-                
-                num_records = struct.unpack('!i', block[:4])[0]
-                curr_offset = 4
-                
-                print(f"\n处理数据块 {block_id}, 包含 {num_records} 条记录")
-                
-                # 读取每条记录
-                for i in range(num_records):
-                    record = []
-                    offset = curr_offset
-                    
-                    # 读取每个字段
-                    for field in field_list:
-                        field_len = field[2]
-                        field_data = block[offset:offset+field_len]
-                        record.append(field_data)
-                        offset += field_len
-                    
-                    # 比较字段值
-                    field_value = record[field_index]
-                    if field_type == 2:  # 整数类型
-                        value_int = struct.unpack('!q', field_value)[0]
-                        print(f"比较: {value_int} vs {struct.unpack('!q', search_value)[0]}")
-                        if value_int == struct.unpack('!q', search_value)[0]:
-                            print(f"找到匹配记录!")
-                            found_records.append((record, block_id, curr_offset))
-                    else:
-                        if field_value.strip() == search_value.strip():
-                            found_records.append((record, block_id, curr_offset))
-                    
-                    curr_offset = offset
-        
-        except Exception as e:
-            print(f"查找记录时出错: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return found_records
-        
-        print(f"\n共找到 {len(found_records)} 条记录")
-        return found_records
+        return results
