@@ -17,8 +17,6 @@ class Header(object):
     #   off         : where the free space begins in body of the schema file
     #---------------------------------------------------------------
     def __init__(self,nameList,fieldDict,inistored, inLen, off):
-        'constructor of Header'
-        print ('__init__ of Header')
         self.isStored=inistored # whether it is stored
         self.lenOfTableNum=inLen # number of tables
         self.offsetOfBody=off

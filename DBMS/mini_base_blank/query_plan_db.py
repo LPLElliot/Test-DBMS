@@ -505,8 +505,10 @@ def execute_sql_statement(schema_obj=None):
     if syn_tree.value == 'SFW':
         construct_logical_tree()
         execute_logical_tree()
+        print("LOGICAL TREE:")
+        common_db.show(common_db.global_syn_tree)
     elif syn_tree.value == 'CREATE_TABLE':
-        execute_create_table(syn_tree)
+        execute_create_table(syn_tree, schema_obj)
     elif syn_tree.value == 'INSERT_INTO':
         execute_insert_into(syn_tree)
     elif syn_tree.value == 'DELETE_FROM':

@@ -168,18 +168,61 @@ def main():
 
         elif choice == '7':  # Process SQL statements
             print('#' + '-'*30 + ' SQL QUERY BEGIN ' + '-'*30 + '#')
-            sql_str = input('Please enter SQL statement: ')
-            try:
-                lex_db.set_lex_handle()        # Initialize lexer
-                parser_db.set_parser_handle()  # Initialize parser
-                common_db.global_lexer.input(sql_str)
-                common_db.global_syn_tree = common_db.global_parser.parse(lexer=common_db.global_lexer)
-                if common_db.global_syn_tree:
-                    query_plan_db.execute_sql_statement(schema_obj)
-                else:
-                    print("Failed to parse SQL statement")
-            except Exception as e:
-                print(f"Error processing SQL: {e}")
+            print('Enter SQL statements (type "." to exit SQL mode, type "+" to generate 400 test records)')
+            while True:
+                sql_str = input('SQL> ').strip()
+                # Check for exit command
+                if sql_str == '.':
+                    break
+                # Check for test data generation command
+                if sql_str == '+':
+                    try:
+                        create_sql = "CREATE TABLE bigtest(id INTEGER, name CHAR(20), age INTEGER, score INTEGER);"
+                        print(f"Executing: {create_sql}")
+                        lex_db.set_lex_handle()
+                        parser_db.set_parser_handle()
+                        common_db.global_lexer.input(create_sql)
+                        common_db.global_syn_tree = common_db.global_parser.parse(lexer=common_db.global_lexer)
+                        if common_db.global_syn_tree:
+                            query_plan_db.execute_sql_statement(schema_obj)
+                        import random
+                        success_count = 0
+                        for i in range(1, 20001):
+                            name = f"Student{i:03d}"
+                            age = random.choice([18, 19, 20, 21, 22])
+                            score = random.randint(70, 100)
+                            insert_sql = f"INSERT INTO bigtest VALUES ({i}, '{name}', {age}, {score});"
+                            try:
+                                lex_db.set_lex_handle()
+                                parser_db.set_parser_handle()
+                                common_db.global_lexer.input(insert_sql)
+                                common_db.global_syn_tree = common_db.global_parser.parse(lexer=common_db.global_lexer)
+                                if common_db.global_syn_tree:
+                                    query_plan_db.execute_sql_statement(schema_obj)
+                                    success_count += 1
+                                if i % 5000 == 0:
+                                    print(f"Progress: {i}/20000 records inserted")
+                            except Exception as e:
+                                print(f"Error inserting record {i}: {e}")
+                    except Exception as e:
+                        print(f"Error generating test data: {e}")
+                    print()
+                    continue
+                # Skip empty input
+                if not sql_str:
+                    continue
+                try:
+                    lex_db.set_lex_handle()        # Initialize lexer
+                    parser_db.set_parser_handle()  # Initialize parser
+                    common_db.global_lexer.input(sql_str)
+                    common_db.global_syn_tree = common_db.global_parser.parse(lexer=common_db.global_lexer)
+                    if common_db.global_syn_tree:
+                        query_plan_db.execute_sql_statement(schema_obj)
+                    else:
+                        print("Failed to parse SQL statement")
+                except Exception as e:
+                    print(f"Error processing SQL: {e}")
+                print()  # Add blank line for readability
             print('#' + '-'*30 + ' SQL QUERY END ' + '-'*32 + '#')
             choice = input(PROMPT_STR)
 
@@ -208,7 +251,6 @@ def main():
             choice = input(PROMPT_STR)
 
         elif choice == '.':  # Quit the program
-            print('Main loop finishes')
             del schema_obj
             break
 

@@ -2,4 +2,5 @@ DBMS/mini_base_blank/all.sch.tags
 DBMS/mini_base_blank/all.sch
 /logs
 *.dat
+*.bak
 DBMS/mini_base_blank/__pycache__

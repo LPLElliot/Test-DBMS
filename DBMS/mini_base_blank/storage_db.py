@@ -503,48 +503,74 @@ class Storage(object):
             print("No matching record found.")
             return False
 
-    # ----------------------------------------------
-    # Author: Xinjian Zhang
-    # to rewrite the entire data file after delete or update
-    # input
-    #       None (uses self.record_list)
-    # output
-    #       None
+    # ------------------------------------------------
+    # Rewrite the entire data file after delete or update operations
+    # Author: Xinjian Zhang 278254081@qq.com
+    # Input:
+    #       None (uses self.record_list from memory)
+    # Output:
+    #       None (rewrites entire .dat file with current records)
     # ------------------------------------------------
     def _rewrite_data_file(self):
+        # Clear existing file content
         self.f_handle.seek(0)
         self.f_handle.truncate(0)
+        
+        # Write metadata block (block 0)
         dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
         beginIndex = 0
+        
+        # Write header: block_id, data_block_num, num_of_fields
         struct.pack_into('!iii', dir_buf, beginIndex, 0, 0, len(self.field_name_list))
         beginIndex += struct.calcsize('!iii')
+        
+        # Write field definitions
         for field in self.field_name_list:
             field_name = field[0]
             if isinstance(field_name, str):
                 field_name = field_name.encode('utf-8')
             struct.pack_into('!10sii', dir_buf, beginIndex, field_name, field[1], field[2])
             beginIndex += struct.calcsize('!10sii')
+        
+        # Write metadata block to file
         self.f_handle.seek(0)
         self.f_handle.write(dir_buf)
         self.f_handle.flush()
+        
+        # Write data records if any exist
         if self.record_list:
             data_block_num = 1
             num_records = len(self.record_list)
             record_head_len = struct.calcsize('!ii10s')
             record_content_len = sum(map(lambda x: x[2], self.field_name_list))
             record_len = record_head_len + record_content_len
+            
+            # Create data block buffer
             data_buf = ctypes.create_string_buffer(BLOCK_SIZE)
+            
+            # Write data block header: block_id, number_of_records
             struct.pack_into('!ii', data_buf, 0, data_block_num, num_records)
+            
+            # Write each record
             for i, record in enumerate(self.record_list):
+                # Write record offset pointer
                 offset = struct.calcsize('!ii') + i * struct.calcsize('!i')
                 beginIndex = BLOCK_SIZE - (i + 1) * record_len
                 struct.pack_into('!i', data_buf, offset, beginIndex)
+                
+                # Write record header: schema_address, content_length, timestamp
                 record_schema_address = struct.calcsize('!iii')
                 update_time = datetime.datetime.now().strftime('%Y-%m-%d')
-                struct.pack_into('!ii10s', data_buf, beginIndex, record_schema_address, record_content_len, update_time.encode('utf-8'))
+                struct.pack_into('!ii10s', data_buf, beginIndex, 
+                               record_schema_address, record_content_len, 
+                               update_time.encode('utf-8'))
+                
+                # Write record content
                 inputstr = b''
                 for idx, field in enumerate(self.field_name_list):
                     val = record[idx]
+                    
+                    # Convert value to bytes
                     if isinstance(val, int):
                         val = str(val).encode('utf-8')
                     elif isinstance(val, str):
@@ -553,45 +579,68 @@ class Storage(object):
                         val = val
                     else:
                         val = str(val).encode('utf-8')
+                    
+                    # Pad or truncate to field length
                     val = b' ' * (field[2] - len(val)) + val if len(val) < field[2] else val[:field[2]]
                     inputstr += val
-                struct.pack_into('!' + str(record_content_len) + 's', data_buf, beginIndex + record_head_len, inputstr)
+                
+                # Pack record content into buffer
+                struct.pack_into('!' + str(record_content_len) + 's', 
+                               data_buf, beginIndex + record_head_len, inputstr)
+            
+            # Write data block to file
             self.f_handle.seek(BLOCK_SIZE)
             self.f_handle.write(data_buf)
             self.f_handle.flush()
+            
+            # Update header with correct data_block_num
             self.f_handle.seek(0)
             self.buf = ctypes.create_string_buffer(struct.calcsize('!ii'))
             struct.pack_into('!ii', self.buf, 0, 0, 1)
             self.f_handle.write(self.buf)
             self.f_handle.flush()
         else:
+            # No records - just write empty metadata
             self.f_handle.seek(0)
             dir_buf = ctypes.create_string_buffer(BLOCK_SIZE)
             beginIndex = 0
             struct.pack_into('!iii', dir_buf, beginIndex, 0, 0, len(self.field_name_list))
             beginIndex += struct.calcsize('!iii')
+            
             for field in self.field_name_list:
                 field_name = field[0]
                 if isinstance(field_name, str):
                     field_name = field_name.encode('utf-8')
                 struct.pack_into('!10sii', dir_buf, beginIndex, field_name, field[1], field[2])
                 beginIndex += struct.calcsize('!10sii')
+            
             self.f_handle.write(dir_buf)
             self.f_handle.flush()
     
+    # ------------------------------------------------
+    # Sequential scan to find records by field value
+    # Author: Xinjian Zhang 278254081@qq.com
+    # Input:
+    #       field_name: name of the field to search in
+    #       search_value: value to search for
+    # Output:
+    #       list of matching record tuples
+    # ------------------------------------------------
     def find_record_by_field(self, field_name, search_value):
         results = []
-        # Find field index
+        
+        # Find field index by name
         field_index = None
         for idx, field in enumerate(self.field_name_list):
             field_name_in_table = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
             if field_name_in_table == field_name:
                 field_index = idx
                 break
+        
         if field_index is None:
             return results
         
-        # Sequential scan through all records
+        # Sequential scan through all records in memory
         for record in self.record_list:
             field_value = record[field_index]
             
@@ -601,6 +650,7 @@ class Storage(object):
             else:
                 field_value_str = str(field_value).strip()
             
+            # Check for exact match
             if field_value_str == search_value.strip():
                 results.append(record)
         
