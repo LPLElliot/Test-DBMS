@@ -187,7 +187,7 @@ def main():
             1: Create index
             2: Drop index
             3: Test index performance
-            4: Back to main menu
+            4: Back to main menu7
             Your choice: '''
             while True:
                 index_choice = input(index_menu)

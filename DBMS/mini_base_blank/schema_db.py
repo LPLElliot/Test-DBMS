@@ -236,7 +236,7 @@ class Schema(object):
     # output
     #       True or False
     # ------------------------------------------------   
-    def WriteBuff(self):
+    def WriteBuff(self, tableName=None):
         bufLen = META_HEAD_SIZE + TABLE_NAME_HEAD_SIZE + MAX_FIELD_SECTION_SIZE  # the length of metahead, table name entries and feildName sections
         buf = ctypes.create_string_buffer(bufLen)
         struct.pack_into('!?ii', buf, 0, self.headObj.isStored, self.headObj.lenOfTableNum, self.headObj.offsetOfBody)

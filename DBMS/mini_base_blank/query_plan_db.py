@@ -10,6 +10,9 @@ import common_db
 import storage_db
 import schema_db
 import itertools 
+import uuid
+import datetime
+import log_db
 
 class parseNode:
     def __init__(self):
@@ -306,40 +309,40 @@ def construct_logical_tree():
 #       None (creates table in schema and storage)
 # ------------------------------------------------
 def execute_create_table(syn_tree, schema_obj=None):
+    print("Executing CREATE TABLE statement...")
     if syn_tree.value == 'CREATE_TABLE':
         table_name = syn_tree.var['table_name']
         fields = syn_tree.var['fields']
-        
-        # Use provided schema_obj or create new one
         if schema_obj is None:
+            import schema_db
             schema_obj = schema_db.Schema()
-        
         table_name_bytes = table_name.encode('utf-8')
         if schema_obj.find_table(table_name_bytes):
             print(f"Table '{table_name}' already exists!")
             return
-        
         try:
-            # Add to schema first
+            # 1. 生成事务ID并登记活动事务
+            tx_id = str(uuid.uuid4())
+            print("写入活动事务日志")
+            log_db.LogManager.add_active_tx(tx_id)
+            # 2. 前像日志（表不存在，前像为None）
+            print("写入前像日志")
+            log_db.LogManager.log_before_image(tx_id, table_name, None)
+            # 3. 创建表（写schema和数据文件）
             field_list = []
             for field_def in fields:
                 field_name = field_def['name']
                 type_code = field_def['type_code']
                 length = field_def['length']
-                
-                # Ensure field name is 10 bytes length
-                if len(field_name) < 10:
-                    field_name_padded = ' ' * (10 - len(field_name)) + field_name
-                else:
-                    field_name_padded = field_name[:10]
-                
+                field_name_padded = (' ' * (10 - len(field_name)) + field_name) if len(field_name) < 10 else field_name[:10]
                 field_list.append((field_name_padded.encode('utf-8'), type_code, length))
-            
             schema_obj.appendTable(table_name_bytes, field_list)
-            
-            # Create data file with predefined fields to avoid interaction
+            import storage_db
             storage_obj = storage_db.Storage(table_name_bytes, field_list_from_create_table=fields)
-            
+            # 4. 后像日志（表结构）
+            log_db.LogManager.log_after_image(tx_id, table_name, fields)
+            # 5. 提交事务日志
+            log_db.LogManager.add_commit_tx(tx_id)
             print(f"Table '{table_name}' created successfully!")
         except Exception as e:
             print(f"Error creating table: {e}")
@@ -518,23 +521,30 @@ def execute_update_set(syn_tree, schema_obj=None):
 def execute_drop_table(syn_tree, schema_obj=None):
     if syn_tree.value == 'DROP_TABLE':
         table_name = syn_tree.var['table_name']
-        
+        if schema_obj is None:
+            import schema_db
+            schema_obj = schema_db.Schema()
+        table_name_bytes = table_name.encode('utf-8')
+        if not schema_obj.find_table(table_name_bytes):
+            print(f"Table '{table_name}' does not exist!")
+            return
         try:
-            table_name_bytes = table_name.encode('utf-8')
-            
-            # Use provided schema_obj or create new one
-            if schema_obj is None:
-                schema_obj = schema_db.Schema()
-            
-            if schema_obj.find_table(table_name_bytes):
-                # Delete table schema
-                schema_obj.delete_table_schema(table_name_bytes)
-                # Delete data file
-                storage_obj = storage_db.Storage(table_name_bytes)
-                storage_obj.delete_table_data(table_name_bytes)
-                print(f"Table '{table_name}' dropped successfully!")
-            else:
-                print(f"Table '{table_name}' does not exist!")
+            # 1. 生成事务ID并登记活动事务
+            tx_id = str(uuid.uuid4())
+            log_db.LogManager.add_active_tx(tx_id)
+            # 2. 前像日志（删除前，记录表结构）
+            fields = schema_obj.headObj.tableFields.get(table_name_bytes, None)
+            log_db.LogManager.log_before_image(tx_id, table_name, fields)
+            # 3. 删除表（schema和数据文件）
+            schema_obj.delete_table_schema(table_name_bytes)
+            import storage_db
+            storage_obj = storage_db.Storage(table_name_bytes)
+            storage_obj.delete_table_data(table_name_bytes)
+            # 4. 后像日志（表已不存在，后像为None）
+            log_db.LogManager.log_after_image(tx_id, table_name, None)
+            # 5. 提交事务日志
+            log_db.LogManager.add_commit_tx(tx_id)
+            print(f"Table '{table_name}' dropped successfully!")
         except Exception as e:
             print(f"Error dropping table: {e}")
 

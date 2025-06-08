@@ -1,3 +1,8 @@
-[2025-06-07 23:23:32] tx_id=ce8f2f37-2472-4350-a870-915add202f60 table=test BEFORE=None
-[2025-06-07 23:24:27] tx_id=37d5a356-d681-4909-a694-c35b89dc2cfa table=test BEFORE=None
-[2025-06-07 23:24:50] tx_id=0c3ef219-e1bb-4791-967c-b611cc5b2385 table=test BEFORE=[b'aa', b'bb']
+[2025-06-08 16:43:55] tx_id=a7ddd1cb-217a-4d32-a977-61d55152fbf2 table=courses BEFORE=None
+[2025-06-08 16:45:51] tx_id=089134fc-7fc0-4095-bf07-4dcc5f61a567 table=courses BEFORE=None
+[2025-06-08 16:49:11] tx_id=9fa4323f-b8f5-4f83-8a43-b726acd34160 table=courses BEFORE=[(b'      c_id', 0, 20), (b'     title', 0, 20), (b'  semester', 0, 20), (b'    credit', 2, 10)]
+[2025-06-08 16:51:20] tx_id=2b91881c-b09b-426c-920e-720499f17a67 table=courses BEFORE=None
+[2025-06-08 16:52:00] tx_id=a164956d-c858-436b-a79d-0796bbd77a4e table=courses BEFORE=None
+[2025-06-08 16:52:54] tx_id=f0cb2a1f-9d5a-42a5-b1da-81d7bac7792f table=courses BEFORE=[(b'      c_id', 0, 20), (b'     title', 0, 20), (b'  semester', 0, 20), (b'    credit', 2, 10)]
+[2025-06-08 16:55:15] tx_id=0066292c-2d00-41eb-89df-a98276039835 table=courses BEFORE=None
+[2025-06-08 16:57:44] tx_id=21d17635-0f8b-4c21-b445-71e469483c6f table=courses BEFORE=[(b'      c_id', 0, 20), (b'     title', 0, 20), (b'  semester', 0, 20), (b'    credit', 2, 10)]

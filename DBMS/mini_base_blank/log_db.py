@@ -15,32 +15,32 @@ class LogManager:
     lock = threading.Lock()
 
     @staticmethod
-    def _write_log(file_path, msg):
-        with LogManager.lock, open(file_path, "a", encoding="utf-8") as f:
+    def _write_log(file_path, msg): #写入日志
+        with open(file_path, "a", encoding="utf-8") as f:
             f.write(msg + "\n")
 
     @staticmethod
-    def log_before_image(tx_id, table, record):
+    def log_before_image(tx_id, table, record): #添加前像文件
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         LogManager._write_log(BEFORE_IMAGE_FILE, f"[{ts}] tx_id={tx_id} table={table} BEFORE={record}")
 
     @staticmethod
-    def log_after_image(tx_id, table, record):
+    def log_after_image(tx_id, table, record): #添加后像文件
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         LogManager._write_log(AFTER_IMAGE_FILE, f"[{ts}] tx_id={tx_id} table={table} AFTER={record}")
 
     @staticmethod
-    def add_active_tx(tx_id):
+    def add_active_tx(tx_id): #添加活动事务文件
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         LogManager._write_log(ACTIVE_TX_FILE, f"[{ts}] tx_id={tx_id} ACTIVE")
 
     @staticmethod
-    def add_commit_tx(tx_id):
+    def add_commit_tx(tx_id): #添加提交事务文件
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         LogManager._write_log(COMMIT_TX_FILE, f"[{ts}] tx_id={tx_id} COMMIT")
 
     @staticmethod
-    def read_log_file(file_path):
+    def read_log_file(file_path): #读取日志文件
         if not os.path.exists(file_path):
             return []
         with open(file_path, "r", encoding="utf-8") as f:
