@@ -10,11 +10,10 @@ import schema_db  # the module to process table schema
 import storage_db  # the module to process the storage of instance
 import query_plan_db  # for SQL clause of which data is stored in binary format
 import lex_db  # for lex, where data is stored in binary format
-import parser_db  # for yacc, where ddata is tored in binary format
+import parser_db  # for yacc, where data is stored in binary format
 import common_db  # the global variables, functions, constants in the program
 import query_plan_db  # construct the query plan and execute it
 import log_db  # for logging, where data is stored in binary format
-import os
 
 PROMPT_STR = '''
  +-----------------------------------------+
@@ -63,8 +62,7 @@ def main():
                 Field_List = dataObj.getFieldList()
                 for x in Field_List:
                     s = 'Input field name is: ' + (
-        x[0].decode('utf-8').strip() if isinstance(x[0], bytes) else str(x[0]).strip()
-    ) + '  field type is: ' + str(x[1]) + '  field maximum length is: ' + str(x[2]) + '\n' +'-->'
+        x[0].decode('utf-8').strip() if isinstance(x[0], bytes) else str(x[0]).strip()) + '  field type is: ' + str(x[1]) + '  field maximum length is: ' + str(x[2]) + '\n' +'-->'
                     record.append(input(s))
                 if dataObj.insert_record(record):  # add a row
                     print('OK!')

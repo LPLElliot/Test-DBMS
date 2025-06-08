@@ -1,5 +1,0 @@
-[2025-06-08 16:43:55] tx_id=a7ddd1cb-217a-4d32-a977-61d55152fbf2 table=courses AFTER=[{'name': 'c_id', 'type_code': 0, 'length': 20}, {'name': 'title', 'type_code': 0, 'length': 20}, {'name': 'semester', 'type_code': 0, 'length': 20}, {'name': 'credit', 'type_code': 2, 'length': 10}]
-[2025-06-08 16:45:51] tx_id=089134fc-7fc0-4095-bf07-4dcc5f61a567 table=courses AFTER=['c01', 'database system', 'fall', 3]
-[2025-06-08 16:51:20] tx_id=2b91881c-b09b-426c-920e-720499f17a67 table=courses AFTER=[{'name': 'c_id', 'type_code': 0, 'length': 20}, {'name': 'title', 'type_code': 0, 'length': 20}, {'name': 'semester', 'type_code': 0, 'length': 20}, {'name': 'credit', 'type_code': 2, 'length': 10}]
-[2025-06-08 16:52:00] tx_id=a164956d-c858-436b-a79d-0796bbd77a4e table=courses AFTER=['c01', 'database system', 'fall', 3]
-[2025-06-08 16:55:15] tx_id=0066292c-2d00-41eb-89df-a98276039835 table=courses AFTER=[{'name': 'c_id', 'type_code': 0, 'length': 20}, {'name': 'title', 'type_code': 0, 'length': 20}, {'name': 'semester', 'type_code': 0, 'length': 20}, {'name': 'credit', 'type_code': 2, 'length': 10}]
