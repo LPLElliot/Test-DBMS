@@ -1,6 +1,7 @@
 '''
 index_db.py
-在此模块中实现B树索引
+索引管理模块
+实现B树索引和哈希索引的创建、删除和搜索功能
 '''
 import os
 import struct
@@ -10,15 +11,28 @@ import common_db
 import storage_db
 
 # 常量定义
-BTREE_INDEX = 1
-HASH_INDEX = 2
-LEAF_NODE_TYPE = 0
-INTERNAL_NODE_TYPE = 1
-SPECIAL_BLOCK_PTR = -1
+BTREE_INDEX = 1    # B树索引类型
+HASH_INDEX = 2     # 哈希索引类型 
+LEAF_NODE_TYPE = 0 # 叶节点
+INTERNAL_NODE_TYPE = 1  # 内部节点
+SPECIAL_BLOCK_PTR = -1  # 特殊块指针
 
+# ----------------------------------------------
+# Author: WuShuCheng
+# 索引类
+# 功能:
+#   - 初始化索引对象
+#   - 创建B树/哈希索引
+#   - 索引查询
+#   - 删除索引
+# ----------------------------------------------
 class Index(object):
     def __init__(self, tablename):
-        """初始化索引对象"""
+        """
+        初始化索引对象
+        参数:
+            tablename: 表名
+        """
         print("__init__ of", Index.__name__)
         self.table_name = tablename.strip()
         self.has_root = False
@@ -48,7 +62,15 @@ class Index(object):
         except Exception as e:
             print(f"初始化索引时出错: {str(e)}")
             raise
-
+# ----------------------------------------------
+# Author: WuShuCheng
+# 创建索引
+# 参数:
+#   field_name: 字段名
+#   index_type: 索引类型(BTREE_INDEX/HASH_INDEX)
+# 返回:
+#   bool: 创建是否成功
+# ----------------------------------------------
     def create_index(self, field_name):
         """创建索引"""
         try:
@@ -142,6 +164,15 @@ class Index(object):
             traceback.print_exc()
             return False
 
+    # ----------------------------------------------
+    # Author: WuShuCheng  
+    # 索引查询
+    # 参数:
+    #   field_name: 字段名
+    #   search_value: 搜索值
+    # 返回:
+    #   list: 匹配记录列表[(block_id, offset),...]
+    # ----------------------------------------------
     def search_by_index(self, field_name, search_value):
         """使用索引搜索记录"""
         try:
@@ -203,6 +234,15 @@ class Index(object):
             traceback.print_exc()
             return []
 
+    # ----------------------------------------------
+    # Author: WuShuCheng
+    # 创建B树索引
+    # 参数:
+    #   records: 记录列表[(key, block_id, offset),...]
+    #   field_type: 字段类型
+    # 返回:
+    #   bool: 创建是否成功
+    # ----------------------------------------------
     def _create_btree_index(self, records, field_type):
         """创建B树索引"""
         try:
@@ -251,6 +291,15 @@ class Index(object):
             traceback.print_exc()
             return False
 
+    # ----------------------------------------------
+    # Author: WuShuCheng
+    # B树搜索
+    # 参数:
+    #   search_key: 搜索键值
+    #   field_type: 字段类型
+    # 返回:
+    #   list: 匹配记录列表[(block_id, offset),...]
+    # ----------------------------------------------
     def _search_btree(self, search_key, field_type):
         """B树索引搜索"""
         try:
@@ -294,7 +343,7 @@ class Index(object):
             return []
 
     def __del__(self):
-        """析构函数"""
+        """析构函数,关闭文件句柄"""
         print("__del__ of", Index.__name__)
         if hasattr(self, 'f_handle'):
             self.f_handle.close()
