@@ -164,7 +164,7 @@ def main():
 
         elif choice == '7':  # Process SQL statements
             print('#' + '-'*30 + ' SQL QUERY BEGIN ' + '-'*30 + '#')
-            print('Enter SQL statements (type "." to exit SQL mode, type "+" to generate 400 test records)')
+            print('Enter SQL statements (type "." to exit SQL mode)')
             while True:
                 sql_str = input('SQL> ').strip()
                 # Check for exit command
