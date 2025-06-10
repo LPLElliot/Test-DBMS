@@ -490,7 +490,7 @@ class Index(object):
         if field_type == 2:  # Integer
             try:
                 search_int = int(search_value)
-                search_key = struct.pack('!q', search_int)  # 8字节格式
+                search_key = struct.pack('!q', search_int)  
             except ValueError:
                 print(f"Invalid integer value: {search_value}")
                 return []
@@ -507,56 +507,54 @@ class Index(object):
             return []
 
     def _hash_search(self, search_key, field_type):
-        if field_type == 2:  # Integer
-            search_int = struct.unpack('!q', search_key)[0]
-            hash_value = hash(search_int) % self.hash_table_size
-        else:  # String
-            search_str = search_key.decode('utf-8', 'ignore').strip()
-            hash_value = hash(search_str) % self.hash_table_size
-        
-        # Read bucket pointer
-        self.f_handle.seek(common_db.BLOCK_SIZE + hash_value * 4)
-        bucket_ptr_data = self.f_handle.read(4)
-        if len(bucket_ptr_data) < 4:
-            return []
-        
-        bucket_ptr = struct.unpack('!i', bucket_ptr_data)[0]
-        if bucket_ptr == 0:
-            return []
-        
-        # Read bucket
-        self.f_handle.seek(bucket_ptr)
-        bucket_size_data = self.f_handle.read(4)
-        if len(bucket_size_data) < 4:
-            return []
-        
-        bucket_size = struct.unpack('!i', bucket_size_data)[0]
-        results = []
-        
-        bucket_data = self.f_handle.read(bucket_size * 16)
-        
-        for i in range(bucket_size):
-            offset = i * 16
-            if offset + 16 <= len(bucket_data):
-                key, block_id, record_offset = struct.unpack_from('!8sii', bucket_data, offset)
-                
-                if self._keys_equal_simple(key, search_key, field_type):
-                    results.append((block_id, record_offset))
-        
-        return results
-
-    def _keys_equal_simple(self, key1, key2, field_type):
         try:
             if field_type == 2:  # Integer
-                val1 = struct.unpack('!q', key1)[0]
-                val2 = struct.unpack('!q', key2)[0]
-                return val1 == val2
+                search_int = struct.unpack('!q', search_key)[0]
+                hash_value = abs(hash(search_int)) % self.hash_table_size  
             else:  # String
-                str1 = key1.decode('utf-8', 'ignore').strip('\x00').strip()
-                str2 = key2.decode('utf-8', 'ignore').strip('\x00').strip()
-                return str1 == str2
-        except:
-            return False
+                search_str = search_key.decode('utf-8', 'ignore').strip()
+                hash_value = abs(hash(search_str)) % self.hash_table_size  
+            
+            # Read bucket pointer
+            self.f_handle.seek(common_db.BLOCK_SIZE + hash_value * 4)
+            bucket_ptr_data = self.f_handle.read(4)
+            if len(bucket_ptr_data) < 4:
+                return []
+            
+            bucket_ptr = struct.unpack('!i', bucket_ptr_data)[0]
+            if bucket_ptr == 0:
+                return []
+            
+            # Read bucket with better error handling
+            self.f_handle.seek(bucket_ptr)
+            bucket_size_data = self.f_handle.read(4)
+            if len(bucket_size_data) < 4:
+                return []
+            
+            bucket_size = struct.unpack('!i', bucket_size_data)[0]
+            if bucket_size <= 0: 
+                return []
+                
+            results = []
+            
+            bucket_data = self.f_handle.read(bucket_size * 16)
+            if len(bucket_data) < bucket_size * 16: 
+                print(f"Warning: Expected {bucket_size * 16} bytes, got {len(bucket_data)}")
+                return []
+            
+            for i in range(bucket_size):
+                offset = i * 16
+                if offset + 16 <= len(bucket_data):
+                    key, block_id, record_offset = struct.unpack_from('!8sii', bucket_data, offset)
+                    
+                    if self._keys_equal_simple(key, search_key, field_type):
+                        results.append((block_id, record_offset))
+            
+            return results
+            
+        except Exception as e:
+            print(f"Hash search error: {e}")
+            return []
 
     def _btree_search(self, search_key, field_type):
         results = []
@@ -569,6 +567,8 @@ class Index(object):
             
             current_leaf = first_leaf_block
             scanned_leaves = set() 
+            max_leaves_to_scan = max(100, self.num_of_levels * 50)
+            
             while current_leaf != -1 and current_leaf not in scanned_leaves:
                 scanned_leaves.add(current_leaf)
                 
@@ -594,12 +594,14 @@ class Index(object):
                     offset += 16
                 
                 if not found_in_this_leaf and len(results) > 0:
-                    break
+                    pass
+                
                 current_leaf += 1
                 
-                if len(scanned_leaves) > 20:
+                if len(scanned_leaves) > max_leaves_to_scan:
+                    print(f"Warning: Scanned {max_leaves_to_scan} leaves, may have missed some results")
                     break
-        
+    
         except Exception as e:
             print(f"B-tree search error: {e}")
         
@@ -687,6 +689,61 @@ class Index(object):
         if hasattr(self, 'f_handle') and self.f_handle:
             try:
                 self.f_handle.close()
-                print("Index file closed")
             except:
                 pass
+
+    # ------------------------------------------------
+    # Validate index correctness
+    # Author: Xinjian Zhang 278254081@qq.com
+    # Input:
+    #       field_name: name of the field to validate index for
+    #       sample_size: number of random records to sample for validation
+    # Output:
+    #       boolean indicating success/failure of validation
+    # ------------------------------------------------
+    def validate_index(self, field_name, sample_size=100):
+        print(f"Validating {'B-tree' if self.index_type == BTREE_INDEX else 'Hash'} index...")
+        
+        storage_obj = storage_db.Storage(self.table_name.encode('utf-8'), debug=False)
+        
+        import random
+        all_records = storage_obj.record_list
+        if len(all_records) > sample_size:
+            test_records = random.sample(all_records, sample_size)
+        else:
+            test_records = all_records
+        
+        field_index = None
+        for idx, field in enumerate(storage_obj.field_name_list):
+            field_name_in_table = field[0].decode('utf-8').strip() if isinstance(field[0], bytes) else str(field[0]).strip()
+            if field_name_in_table == field_name:
+                field_index = idx
+                break
+        
+        if field_index is None:
+            print("Field not found for validation")
+            return False
+        
+        errors = 0
+        for record in test_records:
+            field_value = record[field_index]
+            if isinstance(field_value, bytes):
+                search_value = field_value.decode('utf-8').strip()
+            else:
+                search_value = str(field_value).strip()
+            
+            index_results = self.search_by_index(field_name, search_value)
+            sequential_results = storage_obj.find_record_by_field(field_name, search_value)
+            
+            if len(index_results) != len(sequential_results):
+                print(f"Mismatch for value '{search_value}': index found {len(index_results)}, sequential found {len(sequential_results)}")
+                errors += 1
+        
+        del storage_obj
+        
+        if errors == 0:
+            print(f"✓ Index validation passed ({sample_size} samples tested)")
+            return True
+        else:
+            print(f"✗ Index validation failed with {errors} errors")
+            return False
